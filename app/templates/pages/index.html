@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <!-- 搜索区域 -->
+    <div class="bg-white rounded-xl shadow-sm p-6 card-hover">
+        <h2 class="text-lg font-bold gradient-text mb-4">🔍 搜索股票</h2>
+        <div class="relative">
+            <input
+                type="text"
+                name="q"
+                placeholder="输入股票代码、名称或拼音首字母..."
+                class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none text-sm"
+                hx-get="/api/search"
+                hx-trigger="keyup changed delay:200ms"
+                hx-target="#search-results"
+                hx-swap="innerHTML"
+            >
+            <svg class="absolute right-3 top-3.5 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+            </svg>
+        </div>
+        <!-- 搜索结果 (HTMX 局部加载) -->
+        <div id="search-results" class="mt-2"></div>
+    </div>
+
+    <!-- 快捷入口 -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <a href="/watchlist" class="bg-white rounded-xl shadow-sm p-5 card-hover flex items-center space-x-3">
+            <span class="text-3xl">⭐</span>
+            <div>
+                <h3 class="font-semibold text-gray-800">自选股</h3>
+                <p class="text-xs text-gray-500">管理关注的股票</p>
+            </div>
+        </a>
+        <a href="/compare" class="bg-white rounded-xl shadow-sm p-5 card-hover flex items-center space-x-3">
+            <span class="text-3xl">⚔️</span>
+            <div>
+                <h3 class="font-semibold text-gray-800">对比PK</h3>
+                <p class="text-xs text-gray-500">横向对比多只股票</p>
+            </div>
+        </a>
+        <div class="bg-white rounded-xl shadow-sm p-5 card-hover flex items-center space-x-3">
+            <span class="text-3xl">🤖</span>
+            <div>
+                <h3 class="font-semibold text-gray-800">AI 分析</h3>
+                <p class="text-xs text-gray-500">输入股票代码深度分析</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 自选股列表 -->
+    <div class="bg-white rounded-xl shadow-sm p-6 card-hover">
+        <h2 class="text-lg font-bold gradient-text mb-4">⭐ 我的自选</h2>
+        <div id="watchlist-container"
+             hx-get="/api/watchlist"
+             hx-trigger="load"
+             hx-swap="innerHTML">
+            <div class="text-sm text-gray-400 py-8 text-center">加载中...</div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

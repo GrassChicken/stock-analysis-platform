@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{{ title | default('智能股票深度分析') }}{% endblock %}</title>
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: { 50:'#eff6ff', 100:'#dbeafe', 500:'#3b82f6', 600:'#2563eb', 700:'#1d4ed8', 800:'#1e40af', 900:'#1e3a5f' },
+                        accent: { 400:'#fbbf24', 500:'#f59e0b', 600:'#d97706' },
+                        rise: '#ef4444',
+                        fall: '#22c55e',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- HTMX -->
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+
+    <!-- ECharts -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+
+    <!-- 自定义样式 -->
+    <style>
+        /* 数字等宽 */
+        .tabular-nums { font-variant-numeric: tabular-nums; }
+        /* 涨跌颜色 */
+        .text-rise { color: #ef4444; }
+        .text-fall { color: #22c55e; }
+        .bg-rise { background-color: #ef4444; }
+        .bg-fall { background-color: #22c55e; }
+        /* 卡片悬浮效果 */
+        .card-hover { transition: transform 0.2s, box-shadow 0.2s; }
+        .card-hover:hover { transform: translateY(-2px); box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1); }
+        /* 渐变标题 */
+        .gradient-text { background: linear-gradient(135deg, #1e3a5f, #2563eb); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        /* 骨架屏 */
+        .skeleton { background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; }
+        @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+    </style>
+
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="h-full bg-gray-50 text-gray-800 antialiased">
+
+    <!-- 顶部导航 -->
+    <nav class="bg-gradient-to-r from-primary-900 to-primary-700 shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-14">
+                <!-- Logo -->
+                <a href="/" class="flex items-center space-x-2">
+                    <span class="text-2xl">📊</span>
+                    <span class="text-white font-bold text-lg">深度分析</span>
+                </a>
+                <!-- 导航链接 -->
+                <div class="flex items-center space-x-6">
+                    <a href="/" class="text-primary-100 hover:text-white text-sm font-medium transition">首页</a>
+                    <a href="/watchlist" class="text-primary-100 hover:text-white text-sm font-medium transition">自选股</a>
+                    <a href="/compare" class="text-primary-100 hover:text-white text-sm font-medium transition">对比PK</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 主内容区 -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- 页脚 -->
+    <footer class="border-t border-gray-200 bg-white mt-auto">
+        <div class="max-w-7xl mx-auto px-4 py-4 text-center text-xs text-gray-400">
+            智能股票深度分析平台 · 数据仅供参考，不构成投资建议
+        </div>
+    </footer>
+
+    <!-- 全局 JS -->
+    <script src="/static/js/app.js"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
