@@ -315,6 +315,82 @@ class TushareClient:
             logger.error(f"获取K线数据失败: {e}")
             return pd.DataFrame()
 
+    def get_money_flow(self, ts_code: str, trade_date: str = None) -> dict:
+        """
+        获取个股资金流向数据
+        
+        Args:
+            ts_code: 股票代码
+            trade_date: 交易日期 YYYYMMDD，默认最新
+        
+        Returns:
+            dict: 包含主力资金流向数据的字典
+        """
+        if not self.pro:
+            return {}
+        
+        ts_code = self._format_code(ts_code)
+        
+        try:
+            # Tushare moneyflow 接口
+            if trade_date:
+                df = self.pro.moneyflow(ts_code=ts_code, trade_date=trade_date)
+            else:
+                # 获取最近的数据
+                end_date = datetime.now().strftime('%Y%m%d')
+                start_date = (datetime.now() - timedelta(days=7)).strftime('%Y%m%d')
+                df = self.pro.moneyflow(ts_code=ts_code, start_date=start_date, end_date=end_date)
+            
+            if df is None or df.empty:
+                logger.warning(f"Tushare 资金流向数据为空: {ts_code}")
+                return {}
+            
+            # 取最新一条
+            latest = df.iloc[0]
+            
+            # Tushare moneyflow 字段映射
+            result = {
+                'trade_date': latest.get('trade_date', ''),
+                'buy_sm_vol': latest.get('buy_sm_vol', 0),  # 小单买入量
+                'buy_sm_amount': latest.get('buy_sm_amount', 0),  # 小单买入金额
+                'sell_sm_vol': latest.get('sell_sm_vol', 0),  # 小单卖出量
+                'sell_sm_amount': latest.get('sell_sm_amount', 0),  # 小单卖出金额
+                'buy_md_vol': latest.get('buy_md_vol', 0),  # 中单买入量
+                'buy_md_amount': latest.get('buy_md_amount', 0),  # 中单买入金额
+                'sell_md_vol': latest.get('sell_md_vol', 0),  # 中单卖出量
+                'sell_md_amount': latest.get('sell_md_amount', 0),  # 中单卖出金额
+                'buy_lg_vol': latest.get('buy_lg_vol', 0),  # 大单买入量
+                'buy_lg_amount': latest.get('buy_lg_amount', 0),  # 大单买入金额
+                'sell_lg_vol': latest.get('sell_lg_vol', 0),  # 大单卖出量
+                'sell_lg_amount': latest.get('sell_lg_amount', 0),  # 大单卖出金额
+                'buy_elg_vol': latest.get('buy_elg_vol', 0),  # 特大单买入量
+                'buy_elg_amount': latest.get('buy_elg_amount', 0),  # 特大单买入金额
+                'sell_elg_vol': latest.get('sell_elg_vol', 0),  # 特大单卖出量
+                'sell_elg_amount': latest.get('sell_elg_amount', 0),  # 特大单卖出金额
+            }
+            
+            # 计算净额
+            result['main_net_inflow'] = (
+                (result['buy_lg_amount'] + result['buy_elg_amount']) - 
+                (result['sell_lg_amount'] + result['sell_elg_amount'])
+            )
+            result['medium_net'] = result['buy_md_amount'] - result['sell_md_amount']
+            result['small_net'] = result['buy_sm_amount'] - result['sell_sm_amount']
+            
+            # 计算总量
+            total = abs(result['main_net_inflow']) + abs(result['medium_net']) + abs(result['small_net'])
+            if total > 0:
+                result['main_net_inflow_pct'] = (result['main_net_inflow'] / total * 100) if total > 0 else 0
+            else:
+                result['main_net_inflow_pct'] = 0
+            
+            logger.info(f"Tushare 资金流向获取成功: {ts_code}, 主力净流入: {result['main_net_inflow']:.2f}")
+            return result
+            
+        except Exception as e:
+            logger.error(f"Tushare 获取资金流向失败: {ts_code}, {e}")
+            return {}
+
 
 # 全局实例（需要延迟初始化）
 _tushare_client = None

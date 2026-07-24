@@ -4,8 +4,11 @@ AKShare 补充数据客户端
 提供资金流向、北向资金、融资融券等数据
 数据源：东方财富/新浪（通过 AKShare）
 所有接口加 try/except 防崩溃，失败返回空字典/列表
+
+优化: 添加重试机制和请求间隔，应对反爬虫限制
 """
 import logging
+import time
 from typing import Dict, Any
 from datetime import datetime
 
@@ -20,6 +23,24 @@ except ImportError:
 from app.services.data.cache_manager import cache_get, cache_set, CACHE_TTL
 
 logger = logging.getLogger(__name__)
+
+
+def retry_request(max_retries=3, delay=1.0):
+    """请求重试装饰器"""
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            for attempt in range(max_retries):
+                try:
+                    return func(*args, **kwargs)
+                except Exception as e:
+                    if attempt < max_retries - 1:
+                        wait_time = delay * (2 ** attempt)
+                        logger.debug(f"请求失败，{wait_time}秒后重试 ({attempt+1}/{max_retries}): {e}")
+                        time.sleep(wait_time)
+                    else:
+                        raise e
+        return wrapper
+    return decorator
 
 
 class AKShareClient:
@@ -50,46 +71,58 @@ class AKShareClient:
 
         try:
             # 方案1: 使用 stock_individual_fund_flow（逐股查询，新浪源）
-            try:
-                market = "sh" if code.startswith('6') else "sz"
-                df = ak.stock_individual_fund_flow(stock=code, market=market)
-                
-                if df is not None and not df.empty:
-                    latest = df.iloc[-1]  # 最后一行是最新
+            # 添加重试逻辑
+            for attempt in range(3):
+                try:
+                    time.sleep(0.5 * attempt)  # 递增延迟
+                    market = "sh" if code.startswith('6') else "sz"
+                    df = ak.stock_individual_fund_flow(stock=code, market=market)
                     
-                    result = self._parse_fund_flow_row(latest, code)
-                    cache_set(cache_key, result, timeout=CACHE_TTL['akshare'])
-                    return result
-            except Exception as e:
-                logger.warning(f"stock_individual_fund_flow 失败: {e}, 尝试备选方案")
-            
-            # 方案2: 使用 stock_individual_fund_flow_rank（全量排名，东方财富源）
-            try:
-                df = ak.stock_individual_fund_flow_rank(indicator="今日")
-                if df is not None and not df.empty:
-                    stock_data = df[df['代码'] == code]
-                    if not stock_data.empty:
-                        latest = stock_data.iloc[0]
-                        result = {
-                            'code': code,
-                            'date': datetime.now().strftime('%Y-%m-%d'),
-                            'close': self._safe_float(latest.get('最新价')),
-                            'change_pct': self._safe_float(latest.get('涨跌幅')),
-                            'main_net_inflow': self._safe_float(latest.get('主力净流入-净额')),
-                            'main_net_inflow_pct': self._safe_float(latest.get('主力净流入-净占比')),
-                            'super_large_net': self._safe_float(latest.get('超大单净流入-净额')),
-                            'super_large_net_pct': self._safe_float(latest.get('超大单净流入-净占比')),
-                            'large_net': self._safe_float(latest.get('大单净流入-净额')),
-                            'large_net_pct': self._safe_float(latest.get('大单净流入-净占比')),
-                            'medium_net': self._safe_float(latest.get('中单净流入-净额')),
-                            'medium_net_pct': self._safe_float(latest.get('中单净流入-净占比')),
-                            'small_net': self._safe_float(latest.get('小单净流入-净额')),
-                            'small_net_pct': self._safe_float(latest.get('小单净流入-净占比')),
-                        }
+                    if df is not None and not df.empty:
+                        latest = df.iloc[-1]  # 最后一行是最新
+                        
+                        result = self._parse_fund_flow_row(latest, code)
                         cache_set(cache_key, result, timeout=CACHE_TTL['akshare'])
                         return result
-            except Exception as e:
-                logger.warning(f"stock_individual_fund_flow_rank 也失败: {e}")
+                except Exception as e:
+                    if attempt < 2:
+                        logger.debug(f"stock_individual_fund_flow 尝试 {attempt+1} 失败: {e}")
+                        continue
+                    logger.warning(f"stock_individual_fund_flow 失败: {e}, 尝试备选方案")
+            
+            # 方案2: 使用 stock_individual_fund_flow_rank（全量排名，东方财富源）
+            # 添加重试逻辑
+            for attempt in range(3):
+                try:
+                    time.sleep(0.5 * attempt)  # 递增延迟
+                    df = ak.stock_individual_fund_flow_rank(indicator="今日")
+                    if df is not None and not df.empty:
+                        stock_data = df[df['代码'] == code]
+                        if not stock_data.empty:
+                            latest = stock_data.iloc[0]
+                            result = {
+                                'code': code,
+                                'date': datetime.now().strftime('%Y-%m-%d'),
+                                'close': self._safe_float(latest.get('最新价')),
+                                'change_pct': self._safe_float(latest.get('涨跌幅')),
+                                'main_net_inflow': self._safe_float(latest.get('主力净流入-净额')),
+                                'main_net_inflow_pct': self._safe_float(latest.get('主力净流入-净占比')),
+                                'super_large_net': self._safe_float(latest.get('超大单净流入-净额')),
+                                'super_large_net_pct': self._safe_float(latest.get('超大单净流入-净占比')),
+                                'large_net': self._safe_float(latest.get('大单净流入-净额')),
+                                'large_net_pct': self._safe_float(latest.get('大单净流入-净占比')),
+                                'medium_net': self._safe_float(latest.get('中单净流入-净额')),
+                                'medium_net_pct': self._safe_float(latest.get('中单净流入-净占比')),
+                                'small_net': self._safe_float(latest.get('小单净流入-净额')),
+                                'small_net_pct': self._safe_float(latest.get('小单净流入-净占比')),
+                            }
+                            cache_set(cache_key, result, timeout=CACHE_TTL['akshare'])
+                            return result
+                except Exception as e:
+                    if attempt < 2:
+                        logger.debug(f"stock_individual_fund_flow_rank 尝试 {attempt+1} 失败: {e}")
+                        continue
+                    logger.warning(f"stock_individual_fund_flow_rank 也失败: {e}")
             
             return {}
         except Exception as e:
