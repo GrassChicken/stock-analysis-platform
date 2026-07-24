@@ -4,11 +4,27 @@
 <div class="space-y-6">
     <div class="flex items-center justify-between">
         <h1 class="text-2xl font-bold gradient-text">⭐ 我的自选股</h1>
-        <a href="/" class="text-sm text-primary-600 hover:text-primary-800">← 返回首页</a>
+        <a href="/" class="text-sm text-primary-600 hover:text-primary-800 transition-colors">← 返回首页</a>
     </div>
 
-    <div class="bg-white rounded-xl shadow-sm p-6">
-        <p class="text-sm text-gray-400 text-center py-12">自选股管理功能开发中...</p>
+    <div class="bg-white rounded-xl shadow-sm p-6 card-hover">
+        <div hx-get="/api/watchlist"
+             hx-trigger="load"
+             hx-swap="innerHTML"
+             hx-indicator="#watchlist-loading">
+            <!-- 骨架屏加载动画 -->
+            <div id="watchlist-loading" class="space-y-3">
+                <div class="animate-pulse">
+                    <div class="h-20 bg-gray-100 rounded-lg"></div>
+                </div>
+                <div class="animate-pulse">
+                    <div class="h-20 bg-gray-100 rounded-lg"></div>
+                </div>
+                <div class="animate-pulse">
+                    <div class="h-20 bg-gray-100 rounded-lg"></div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}

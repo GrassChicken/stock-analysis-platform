@@ -4,11 +4,19 @@
 <div class="space-y-6">
     <div class="flex items-center justify-between">
         <h1 class="text-2xl font-bold gradient-text">⚔️ 股票对比 PK</h1>
-        <a href="/" class="text-sm text-primary-600 hover:text-primary-800">← 返回首页</a>
+        <a href="/" class="text-sm text-primary-600 hover:text-primary-800 transition-colors">← 返回首页</a>
     </div>
 
-    <div class="bg-white rounded-xl shadow-sm p-6">
-        <p class="text-sm text-gray-400 text-center py-12">对比PK功能开发中...</p>
+    <div class="bg-white rounded-xl shadow-sm p-6 card-hover">
+        <div class="text-center py-12">
+            <div class="inline-block p-4 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full mb-4">
+                <svg class="w-12 h-12 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                </svg>
+            </div>
+            <p class="text-gray-500 mb-2">对比功能开发中</p>
+            <p class="text-sm text-gray-400">支持多只股票的基本面、技术面、估值面全方位对比</p>
+        </div>
     </div>
 </div>
 {% endblock %}
