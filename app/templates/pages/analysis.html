@@ -4,15 +4,15 @@
 <div class="space-y-6">
 
     <!-- 股票头部信息 -->
-    <div class="bg-white rounded-xl shadow-sm p-6">
+    <div id="stock-header" class="bg-white rounded-xl shadow-sm p-6">
         <div class="flex items-center justify-between">
             <div>
-                <h1 class="text-2xl font-bold text-gray-800">{{ stock_code }}</h1>
-                <p class="text-sm text-gray-500 mt-1">加载中...</p>
+                <h1 id="stock-name" class="text-2xl font-bold text-gray-800">{{ stock_code }}</h1>
+                <p id="stock-industry" class="text-sm text-gray-500 mt-1">加载中...</p>
             </div>
             <div class="text-right">
-                <div class="text-3xl font-bold tabular-nums text-rise">--</div>
-                <div class="text-sm tabular-nums text-rise">-- (--%)</div>
+                <div id="stock-price" class="text-3xl font-bold tabular-nums text-rise">--</div>
+                <div id="stock-change" class="text-sm tabular-nums text-rise">-- (--%)</div>
             </div>
         </div>
     </div>
@@ -24,10 +24,11 @@
         <div class="bg-white rounded-xl shadow-sm p-5 card-hover">
             <h3 class="text-sm font-semibold text-gray-500 mb-3">综合评分</h3>
             <div class="text-center py-6">
-                <div class="text-5xl font-bold gradient-text tabular-nums">--</div>
-                <div class="mt-2 inline-block px-3 py-1 rounded-full bg-accent-400/20 text-accent-600 text-sm font-semibold">
+                <div id="total-score" class="text-5xl font-bold gradient-text tabular-nums">--</div>
+                <div id="rating-badge" class="mt-2 inline-block px-3 py-1 rounded-full bg-gray-100 text-gray-500 text-sm font-semibold">
                     评级: --
                 </div>
+                <div id="score-breakdown" class="mt-4 space-y-2 text-xs text-gray-500"></div>
             </div>
             <!-- 五维雷达图 -->
             <div id="radar-chart" class="w-full h-48"></div>
@@ -38,9 +39,9 @@
             <div class="flex items-center justify-between mb-3">
                 <h3 class="text-sm font-semibold text-gray-500">K线走势</h3>
                 <div class="flex space-x-1">
-                    <button class="px-2 py-1 text-xs rounded bg-primary-500 text-white">日K</button>
-                    <button class="px-2 py-1 text-xs rounded bg-gray-100 text-gray-600 hover:bg-gray-200">周K</button>
-                    <button class="px-2 py-1 text-xs rounded bg-gray-100 text-gray-600 hover:bg-gray-200">月K</button>
+                    <button class="kline-period px-2 py-1 text-xs rounded bg-primary-500 text-white" data-period="daily">日K</button>
+                    <button class="kline-period px-2 py-1 text-xs rounded bg-gray-100 text-gray-600 hover:bg-gray-200" data-period="weekly">周K</button>
+                    <button class="kline-period px-2 py-1 text-xs rounded bg-gray-100 text-gray-600 hover:bg-gray-200" data-period="monthly">月K</button>
                 </div>
             </div>
             <div id="kline-chart" class="w-full h-80"></div>
@@ -51,34 +52,17 @@
     <div class="bg-white rounded-xl shadow-sm">
         <div class="border-b border-gray-200">
             <nav class="flex overflow-x-auto">
-                <button class="tab-btn px-5 py-3 text-sm font-medium text-primary-600 border-b-2 border-primary-600 whitespace-nowrap"
-                        hx-get="/stock/{{ stock_code }}/fundamental"
-                        hx-target="#tab-content"
-                        hx-swap="innerHTML">基本面</button>
-                <button class="tab-btn px-5 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 whitespace-nowrap"
-                        hx-get="/stock/{{ stock_code }}/technical"
-                        hx-target="#tab-content"
-                        hx-swap="innerHTML">技术面</button>
-                <button class="tab-btn px-5 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 whitespace-nowrap"
-                        hx-get="/stock/{{ stock_code }}/valuation"
-                        hx-target="#tab-content"
-                        hx-swap="innerHTML">估值面</button>
-                <button class="tab-btn px-5 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 whitespace-nowrap"
-                        hx-get="/stock/{{ stock_code }}/capital"
-                        hx-target="#tab-content"
-                        hx-swap="innerHTML">资金面</button>
-                <button class="tab-btn px-5 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 whitespace-nowrap"
-                        hx-get="/stock/{{ stock_code }}/industry"
-                        hx-target="#tab-content"
-                        hx-swap="innerHTML">行业面</button>
-                <button class="tab-btn px-5 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 whitespace-nowrap"
-                        hx-get="/stock/{{ stock_code }}/ai"
-                        hx-target="#tab-content"
-                        hx-swap="innerHTML">🤖 AI分析</button>
+                <button class="tab-btn px-5 py-3 text-sm font-medium text-primary-600 border-b-2 border-primary-600 whitespace-nowrap" data-tab="fundamental">基本面</button>
+                <button class="tab-btn px-5 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 whitespace-nowrap" data-tab="technical">技术面</button>
+                <button class="tab-btn px-5 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 whitespace-nowrap" data-tab="valuation">估值面</button>
+                <button class="tab-btn px-5 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 whitespace-nowrap" data-tab="dupont">杜邦分析</button>
+                <button class="tab-btn px-5 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 whitespace-nowrap" data-tab="capital">资金面</button>
+                <button class="tab-btn px-5 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 whitespace-nowrap" data-tab="industry">行业面</button>
             </nav>
         </div>
         <div id="tab-content" class="p-5">
-            <p class="text-sm text-gray-400 text-center py-8">选择一个维度开始分析</p>
+            <p id="tab-loading" class="text-sm text-gray-400 text-center py-8">加载中...</p>
+            <div id="tab-body"></div>
         </div>
     </div>
 
@@ -88,48 +72,272 @@
 {% block extra_js %}
 <script src="/static/js/charts.js"></script>
 <script>
-    // 初始化图表 (Phase 5 完善)
-    document.addEventListener('DOMContentLoaded', function() {
-        // 雷达图占位
-        const radarChart = echarts.init(document.getElementById('radar-chart'));
-        radarChart.setOption({
-            radar: {
-                indicator: [
-                    { name: '基本面', max: 100 },
-                    { name: '技术面', max: 100 },
-                    { name: '资金面', max: 100 },
-                    { name: '估值面', max: 100 },
-                    { name: '行业面', max: 100 }
-                ],
-                shape: 'polygon',
-                splitArea: { areaStyle: { color: ['#f8fafc', '#f1f5f9'] } }
-            },
-            series: [{ type: 'radar', data: [{ value: [0,0,0,0,0], name: '评分', areaStyle: { opacity: 0.2 } }] }]
-        });
+    const STOCK_CODE = '{{ stock_code }}';
+    let radarChart, klineChart;
 
-        // K线图占位
-        const klineChart = echarts.init(document.getElementById('kline-chart'));
-        klineChart.setOption({
-            xAxis: { type: 'category', data: [] },
-            yAxis: { type: 'value' },
-            series: [{ type: 'candlestick', data: [] }],
-            graphic: [{ type: 'text', left: 'center', top: 'center', style: { text: 'K线数据加载中...', fontSize: 14, fill: '#9ca3af' } }]
-        });
+    document.addEventListener('DOMContentLoaded', function() {
+        // 初始化图表
+        radarChart = echarts.init(document.getElementById('radar-chart'));
+        klineChart = echarts.init(document.getElementById('kline-chart'));
 
         // 响应式
         window.addEventListener('resize', () => { radarChart.resize(); klineChart.resize(); });
-    });
 
-    // Tab 切换高亮
-    document.querySelectorAll('.tab-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-            document.querySelectorAll('.tab-btn').forEach(b => {
-                b.classList.remove('text-primary-600', 'border-b-2', 'border-primary-600');
-                b.classList.add('text-gray-500');
+        // 加载数据
+        loadAllData();
+
+        // Tab 切换
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.tab-btn').forEach(b => {
+                    b.classList.remove('text-primary-600', 'border-b-2', 'border-primary-600');
+                    b.classList.add('text-gray-500');
+                });
+                this.classList.add('text-primary-600', 'border-b-2', 'border-primary-600');
+                this.classList.remove('text-gray-500');
+                loadTabContent(this.dataset.tab);
             });
-            this.classList.add('text-primary-600', 'border-b-2', 'border-primary-600');
-            this.classList.remove('text-gray-500');
+        });
+
+        // K线周期切换
+        document.querySelectorAll('.kline-period').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.kline-period').forEach(b => {
+                    b.classList.remove('bg-primary-500', 'text-white');
+                    b.classList.add('bg-gray-100', 'text-gray-600');
+                });
+                this.classList.add('bg-primary-500', 'text-white');
+                this.classList.remove('bg-gray-100', 'text-gray-600');
+                loadKline(this.dataset.period);
+            });
         });
     });
+
+    // 加载全部数据
+    async function loadAllData() {
+        try {
+            const [quote, score, kline] = await Promise.all([
+                fetch(`/api/stock/${STOCK_CODE}/quote`).then(r => r.json()),
+                fetch(`/api/stock/${STOCK_CODE}/score`).then(r => r.json()),
+                fetch(`/api/stock/${STOCK_CODE}/kline?period=daily&count=60`).then(r => r.json())
+            ]);
+
+            // 填充头部信息
+            if (quote && !quote.error) {
+                document.getElementById('stock-name').textContent = `${quote.name || STOCK_CODE} (${STOCK_CODE})`;
+                document.getElementById('stock-industry').textContent = quote.industry || '行业信息加载中...';
+                const priceEl = document.getElementById('stock-price');
+                const changeEl = document.getElementById('stock-change');
+                priceEl.textContent = quote.price?.toFixed(2) || '--';
+                const change = quote.change?.toFixed(2) || '--';
+                const pct = quote.change_pct?.toFixed(2) || '--';
+                changeEl.textContent = `${change >= 0 ? '+' : ''}${change} (${pct >= 0 ? '+' : ''}${pct}%)`;
+                const colorClass = quote.change >= 0 ? 'text-rise' : 'text-fall';
+                priceEl.className = `text-3xl font-bold tabular-nums ${colorClass}`;
+                changeEl.className = `text-sm tabular-nums ${colorClass}`;
+            }
+
+            // 填充评分
+            if (score && !score.error) {
+                document.getElementById('total-score').textContent = score.total_score?.toFixed(1) || '--';
+                const badge = document.getElementById('rating-badge');
+                const ratingMap = { 'A+': '优质', 'A': '良好', 'B': '一般', 'C': '较弱' };
+                badge.textContent = `评级: ${score.rating || '--'} ${ratingMap[score.rating] || ''}`;
+                badge.className = `mt-2 inline-block px-3 py-1 rounded-full text-sm font-semibold ${
+                    score.rating === 'A+' ? 'bg-green-100 text-green-700' :
+                    score.rating === 'A' ? 'bg-blue-100 text-blue-700' :
+                    score.rating === 'B' ? 'bg-yellow-100 text-yellow-700' :
+                    'bg-gray-100 text-gray-500'
+                }`;
+
+                // 评分明细
+                const breakdown = document.getElementById('score-breakdown');
+                if (score.breakdown) {
+                    breakdown.innerHTML = `
+                        <div class="flex justify-between"><span>基本面</span><span class="font-semibold">${score.breakdown.fundamental_score?.toFixed(1) || '--'}</span></div>
+                        <div class="flex justify-between"><span>估值面</span><span class="font-semibold">${score.breakdown.valuation_score?.toFixed(1) || '--'}</span></div>
+                        <div class="flex justify-between"><span>成长性</span><span class="font-semibold">${score.breakdown.growth_score?.toFixed(1) || '--'}</span></div>
+                    `;
+                }
+
+                // 雷达图
+                radarChart.setOption(Charts.createRadarOption([
+                    score.breakdown?.fundamental_score || 0,
+                    0,  // 技术面 (待开发)
+                    0,  // 资金面 (待开发)
+                    score.breakdown?.valuation_score || 0,
+                    0   // 行业面 (待开发)
+                ]));
+            }
+
+            // K线图
+            if (kline && kline.data && kline.data.length > 0) {
+                klineChart.setOption(Charts.createKlineOption(kline.data));
+            }
+
+        } catch (err) {
+            console.error('加载数据失败:', err);
+            document.getElementById('stock-name').textContent = '数据加载失败';
+        }
+    }
+
+    // 加载 K 线
+    async function loadKline(period) {
+        try {
+            const res = await fetch(`/api/stock/${STOCK_CODE}/kline?period=${period}&count=120`);
+            const data = await res.json();
+            if (data.data && data.data.length > 0) {
+                klineChart.setOption(Charts.createKlineOption(data.data));
+            }
+        } catch (err) {
+            console.error('K线加载失败:', err);
+        }
+    }
+
+    // 加载 Tab 内容
+    async function loadTabContent(tab) {
+        const loading = document.getElementById('tab-loading');
+        const body = document.getElementById('tab-body');
+        loading.style.display = 'block';
+        body.innerHTML = '';
+
+        try {
+            let html = '';
+            if (tab === 'fundamental') {
+                const res = await fetch(`/api/stock/${STOCK_CODE}/fundamental`);
+                const data = await res.json();
+                html = renderFundamental(data);
+            } else if (tab === 'valuation') {
+                const res = await fetch(`/api/stock/${STOCK_CODE}/valuation`);
+                const data = await res.json();
+                html = renderValuation(data);
+            } else if (tab === 'dupont') {
+                const res = await fetch(`/api/stock/${STOCK_CODE}/dupont`);
+                const data = await res.json();
+                html = renderDupont(data);
+            } else if (tab === 'technical' || tab === 'capital' || tab === 'industry') {
+                html = `<div class="text-center py-8 text-gray-400">
+                    <p class="text-lg mb-2">⏳ ${tab === 'technical' ? '技术面' : tab === 'capital' ? '资金面' : '行业面'}分析引擎开发中</p>
+                    <p class="text-sm">预计 Phase 3-4 完成后上线</p>
+                </div>`;
+            }
+            body.innerHTML = html;
+        } catch (err) {
+            body.innerHTML = `<div class="text-center py-8 text-red-500">加载失败: ${err.message}</div>`;
+        }
+        loading.style.display = 'none';
+    }
+
+    // 渲染基本面
+    function renderFundamental(data) {
+        if (!data || data.error) return '<div class="text-center py-8 text-gray-400">暂无数据</div>';
+        const p = data.profitability || {};
+        const g = data.growth || {};
+        const s = data.solvency || {};
+        const c = data.cashflow || {};
+        const fmt = (v, unit = '') => v != null ? v.toFixed(2) + unit : '--';
+        return `
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div class="bg-gray-50 rounded-lg p-4">
+                <h4 class="text-sm font-semibold text-gray-600 mb-3">💰 盈利能力</h4>
+                <div class="space-y-2 text-sm">
+                    <div class="flex justify-between"><span class="text-gray-500">ROE</span><span class="font-semibold">${fmt(p.roe, '%')}</span></div>
+                    <div class="flex justify-between"><span class="text-gray-500">净利率</span><span class="font-semibold">${fmt(p.net_margin, '%')}</span></div>
+                    <div class="flex justify-between"><span class="text-gray-500">EPS</span><span class="font-semibold">${fmt(p.eps, '元')}</span></div>
+                </div>
+            </div>
+            <div class="bg-gray-50 rounded-lg p-4">
+                <h4 class="text-sm font-semibold text-gray-600 mb-3">📈 成长性</h4>
+                <div class="space-y-2 text-sm">
+                    <div class="flex justify-between"><span class="text-gray-500">营收同比</span><span class="font-semibold ${g.revenue_yoy >= 0 ? 'text-rise' : 'text-fall'}">${fmt(g.revenue_yoy, '%')}</span></div>
+                    <div class="flex justify-between"><span class="text-gray-500">利润同比</span><span class="font-semibold ${g.profit_yoy >= 0 ? 'text-rise' : 'text-fall'}">${fmt(g.profit_yoy, '%')}</span></div>
+                    <div class="flex justify-between"><span class="text-gray-500">连续增长</span><span class="font-semibold">${g.profit_continuous_growth_quarters || 0} 季</span></div>
+                </div>
+            </div>
+            <div class="bg-gray-50 rounded-lg p-4">
+                <h4 class="text-sm font-semibold text-gray-600 mb-3">🏦 偿债能力</h4>
+                <div class="space-y-2 text-sm">
+                    <div class="flex justify-between"><span class="text-gray-500">资产负债率</span><span class="font-semibold">${fmt(s.debt_to_assets, '%')}</span></div>
+                    <div class="flex justify-between"><span class="text-gray-500">流动比率</span><span class="font-semibold">${fmt(s.current_ratio)}</span></div>
+                </div>
+            </div>
+            <div class="bg-gray-50 rounded-lg p-4 md:col-span-2 lg:col-span-3">
+                <h4 class="text-sm font-semibold text-gray-600 mb-3">💵 现金流</h4>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                    <div><span class="text-gray-500 block">经营现金流</span><span class="font-semibold">${(c.operating_cashflow || 0).toLocaleString()} 万</span></div>
+                    <div><span class="text-gray-500 block">自由现金流</span><span class="font-semibold ${(c.free_cashflow || 0) >= 0 ? 'text-rise' : 'text-fall'}">${(c.free_cashflow || 0).toLocaleString()} 万</span></div>
+                    <div><span class="text-gray-500 block">投资现金流</span><span class="font-semibold">${(c.invest_cashflow || 0).toLocaleString()} 万</span></div>
+                    <div><span class="text-gray-500 block">现金流覆盖率</span><span class="font-semibold">${fmt(c.cashflow_coverage, '%')}</span></div>
+                </div>
+            </div>
+        </div>`;
+    }
+
+    // 渲染估值
+    function renderValuation(data) {
+        if (!data || data.error) return '<div class="text-center py-8 text-gray-400">暂无数据</div>';
+        const v = data.current_valuation || {};
+        const p = data.pe_percentile || {};
+        const pb = data.pb_percentile || {};
+        const fmt = (val, unit = '') => val != null ? val.toFixed(2) + unit : '--';
+        const percentileColor = (pct) => pct < 30 ? 'text-fall' : pct > 70 ? 'text-rise' : 'text-yellow-600';
+        const percentileLabel = (pct) => pct < 30 ? '低估' : pct > 70 ? '高估' : '合理';
+        return `
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="bg-gray-50 rounded-lg p-4">
+                <h4 class="text-sm font-semibold text-gray-600 mb-3">📊 当前估值</h4>
+                <div class="grid grid-cols-2 gap-3 text-sm">
+                    <div class="flex justify-between"><span class="text-gray-500">PE (TTM)</span><span class="font-semibold">${fmt(v.pe_ttm)}</span></div>
+                    <div class="flex justify-between"><span class="text-gray-500">PE</span><span class="font-semibold">${fmt(v.pe)}</span></div>
+                    <div class="flex justify-between"><span class="text-gray-500">PB</span><span class="font-semibold">${fmt(v.pb)}</span></div>
+                    <div class="flex justify-between"><span class="text-gray-500">PS</span><span class="font-semibold">${fmt(v.ps)}</span></div>
+                    <div class="flex justify-between"><span class="text-gray-500">总市值</span><span class="font-semibold">${v.total_mv ? (v.total_mv / 10000).toFixed(0) + ' 亿' : '--'}</span></div>
+                    <div class="flex justify-between"><span class="text-gray-500">流通市值</span><span class="font-semibold">${v.circ_mv ? (v.circ_mv / 10000).toFixed(0) + ' 亿' : '--'}</span></div>
+                </div>
+            </div>
+            <div class="bg-gray-50 rounded-lg p-4">
+                <h4 class="text-sm font-semibold text-gray-600 mb-3">📈 历史分位</h4>
+                <div class="space-y-4 text-sm">
+                    <div>
+                        <div class="flex justify-between mb-1"><span class="text-gray-500">PE 分位</span><span class="font-semibold ${percentileColor(p.percentile)}">${fmt(p.percentile, '%')} <span class="text-xs ${percentileColor(p.percentile)}">${percentileLabel(p.percentile)}</span></span></div>
+                        <div class="w-full bg-gray-200 rounded-full h-2"><div class="bg-primary-500 h-2 rounded-full" style="width: ${p.percentile || 0}%"></div></div>
+                    </div>
+                    <div>
+                        <div class="flex justify-between mb-1"><span class="text-gray-500">PB 分位</span><span class="font-semibold ${percentileColor(pb.percentile)}">${fmt(pb.percentile, '%')} <span class="text-xs ${percentileColor(pb.percentile)}">${percentileLabel(pb.percentile)}</span></span></div>
+                        <div class="w-full bg-gray-200 rounded-full h-2"><div class="bg-primary-500 h-2 rounded-full" style="width: ${pb.percentile || 0}%"></div></div>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+    }
+
+    // 渲染杜邦分析
+    function renderDupont(data) {
+        if (!data || data.error) return '<div class="text-center py-8 text-gray-400">暂无数据</div>';
+        const r = data.roe_components || {};
+        const c = data.contribution || {};
+        const fmt = (v, unit = '') => v != null ? v.toFixed(2) + unit : '--';
+        return `
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-5 text-center">
+                <h4 class="text-sm font-semibold text-blue-700 mb-2">ROE (净资产收益率)</h4>
+                <div class="text-3xl font-bold text-blue-900">${fmt(r.roe, '%')}</div>
+            </div>
+            <div class="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-5 text-center">
+                <h4 class="text-sm font-semibold text-green-700 mb-2">净利率</h4>
+                <div class="text-2xl font-bold text-green-900">${fmt(r.net_margin, '%')}</div>
+            </div>
+            <div class="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-5 text-center">
+                <h4 class="text-sm font-semibold text-purple-700 mb-2">权益乘数</h4>
+                <div class="text-2xl font-bold text-purple-900">${fmt(r.equity_multiplier)}</div>
+            </div>
+        </div>
+        <div class="mt-4 bg-gray-50 rounded-lg p-4">
+            <h4 class="text-sm font-semibold text-gray-600 mb-3">📊 杜邦分解</h4>
+            <p class="text-sm text-gray-600 mb-2"><span class="font-semibold">ROE</span> = <span class="text-green-600">净利率</span> × <span class="text-purple-600">总资产周转率</span> × <span class="text-blue-600">权益乘数</span></p>
+            <p class="text-sm text-gray-600 mb-4">${fmt(r.net_margin, '%')} × ${fmt(r.asset_turn)} × ${fmt(r.equity_multiplier)} = <span class="font-bold text-blue-700">${fmt(r.roe, '%')}</span></p>
+            ${c.main_driver ? `<div class="text-sm"><span class="font-semibold">主要驱动因素:</span> <span class="text-primary-600">${c.main_driver}</span></div>` : ''}
+        </div>`;
+    }
 </script>
 {% endblock %}
