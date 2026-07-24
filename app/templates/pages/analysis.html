@@ -193,8 +193,7 @@
             const data = await res.json();
             
             if (data && !data.error) {
-                document.getElementById('stock-name').textContent = data.name || STOCK_CODE;
-                document.getElementById('stock-code').textContent = STOCK_CODE;
+                document.getElementById('stock-name').textContent = `${data.name || ''} ${STOCK_CODE}`;
                 document.getElementById('stock-industry').textContent = data.industry || '';
                 document.getElementById('stock-price').textContent = data.price?.toFixed(2) || '--';
                 document.getElementById('stock-change').textContent = data.change_pct?.toFixed(2) + '%' || '--';
