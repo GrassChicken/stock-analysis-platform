@@ -37,6 +37,9 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
+    // ★ 关键修复：页面加载时自动加载默认页签（基本面）的内容
+    loadTabContent('fundamental');
+
     // K线周期切换（事件委托）
     document.addEventListener('click', function(e) {
         if (e.target.classList.contains('kline-period')) {

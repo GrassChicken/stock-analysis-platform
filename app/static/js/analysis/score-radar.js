@@ -83,13 +83,35 @@ function initRadarChart(data) {
 
     window.radarChart.setOption({
         radar: {
+            center: ['50%', '50%'],   // 完全居中
+            radius: '75%',            // 进一步增大尺寸
             indicator: [
                 { name: '基本面', max: 100 },
                 { name: '技术面', max: 100 },
                 { name: '估值面', max: 100 },
                 { name: '资金面', max: 100 },
                 { name: '行业面', max: 100 }
-            ]
+            ],
+            axisName: {
+                color: '#666',
+                fontSize: 13,
+                fontWeight: 500
+            },
+            splitArea: {
+                areaStyle: {
+                    color: ['rgba(59, 130, 246, 0.05)', 'rgba(59, 130, 246, 0.1)']
+                }
+            },
+            axisLine: {
+                lineStyle: {
+                    color: 'rgba(0, 0, 0, 0.1)'
+                }
+            },
+            splitLine: {
+                lineStyle: {
+                    color: 'rgba(0, 0, 0, 0.1)'
+                }
+            }
         },
         series: [{
             type: 'radar',
@@ -102,7 +124,17 @@ function initRadarChart(data) {
                     industry_score || 0
                 ],
                 name: '评分'
-            }]
+            }],
+            itemStyle: {
+                color: '#3b82f6'
+            },
+            areaStyle: {
+                color: 'rgba(59, 130, 246, 0.2)'
+            },
+            lineStyle: {
+                color: '#3b82f6',
+                width: 2
+            }
         }]
     });
 }
