@@ -6,6 +6,7 @@ from app.services.analysis.fundamental import FundamentalAnalyzer
 from app.services.analysis.valuation import ValuationAnalyzer
 from app.services.analysis.dupont import DupontAnalyzer
 from app.services.analysis.scorer import StockScorer
+from app.services.analysis.technical import TechnicalAnalyzer
 
 api_bp = Blueprint("api", __name__)
 
@@ -111,6 +112,17 @@ def get_dupont(code: str):
     """杜邦分析"""
     try:
         analyzer = DupontAnalyzer()
+        result = analyzer.analyze(code)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@api_bp.route("/stock/<code>/technical")
+def get_technical(code: str):
+    """技术面分析"""
+    try:
+        analyzer = TechnicalAnalyzer()
         result = analyzer.analyze(code)
         return jsonify(result)
     except Exception as e:

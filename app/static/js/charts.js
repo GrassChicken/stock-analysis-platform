@@ -11,9 +11,14 @@ const FALL_COLOR = '#22c55e';
  * K线图配置
  */
 function createKlineOption(data) {
-    const dates = data.map(d => d.date);
+    const dates = data.map(d => {
+        const raw = d.trade_date || d.date || '';
+        // "20260717" -> "07-17"
+        if (raw.length === 8) return raw.slice(4, 6) + '-' + raw.slice(6, 8);
+        return raw;
+    });
     const ohlc = data.map(d => [d.open, d.close, d.low, d.high]);
-    const volumes = data.map(d => d.volume);
+    const volumes = data.map(d => d.vol || d.volume);
 
     return {
         tooltip: {
