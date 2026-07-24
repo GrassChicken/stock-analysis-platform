@@ -45,6 +45,7 @@
                 </div>
             </div>
             <div id="kline-chart" class="w-full h-80"></div>
+            <div id="data-hint" class="mt-2 text-xs text-gray-400 text-center"></div>
         </div>
     </div>
 
@@ -173,6 +174,16 @@
             // K线图
             if (kline && kline.data && kline.data.length > 0) {
                 klineChart.setOption(Charts.createKlineOption(kline.data));
+                
+                // 显示数据截止时间
+                const lastTradeDate = kline.data[kline.data.length - 1].trade_date;
+                const dateHint = document.getElementById('data-hint');
+                if (lastTradeDate && dateHint) {
+                    const year = lastTradeDate.slice(0, 4);
+                    const month = parseInt(lastTradeDate.slice(4, 6));
+                    const day = parseInt(lastTradeDate.slice(6, 8));
+                    dateHint.textContent = `数据截止${year}-${month}-${day}，交易日数据在收盘后60分钟后刷新！`;
+                }
             }
 
         } catch (err) {
