@@ -1,3 +1,23 @@
+// 数字滚动动画
+function animateNumber(element, target, duration = 1000, decimals = 0) {
+    const start = 0;
+    const startTime = performance.now();
+    
+    function update(currentTime) {
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        // easeOutQuart 缓动
+        const easeOut = 1 - Math.pow(1 - progress, 4);
+        const current = start + (target - start) * easeOut;
+        element.textContent = current.toFixed(decimals);
+        if (progress < 1) {
+            requestAnimationFrame(update);
+        }
+    }
+    
+    requestAnimationFrame(update);
+}
+
 /**
  * ECharts 图表封装
  * K线/雷达/资金流向等图表的通用配置
