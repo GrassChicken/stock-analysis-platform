@@ -1,4 +1,4 @@
-<!-- 全局 JS -->
+// 全局 JS
 // Tab 切换通用函数
 function switchTab(btn, contentId) {
     document.querySelectorAll('.tab-btn').forEach(b => {

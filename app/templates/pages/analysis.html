@@ -280,14 +280,16 @@
                     dateHint.textContent = `数据截止${year}-${month}-${day}，交易日数据在收盘后60分钟后刷新！`;
                 }
                 
-                // 初始化K线图
-                initKlineChart();
-                
-                // 显示K线区域
+                // 先显示K线区域（必须在初始化图表之前）
                 const klineSkeleton = document.getElementById('kline-skeleton');
                 const klineContent = document.getElementById('kline-content');
                 if (klineSkeleton) klineSkeleton.style.display = 'none';
                 if (klineContent) klineContent.style.display = 'block';
+                
+                // 等待容器渲染后再初始化图表
+                setTimeout(() => {
+                    initKlineChart();
+                }, 100);
             }
         } catch (err) {
             console.error('加载K线数据失败:', err);
