@@ -146,14 +146,10 @@
 <script src="/static/js/charts.js"></script>
 <script>
     const STOCK_CODE = '{{ stock_code }}';
-    let radarChart, klineChart;
+    let radarChart = null;
+    let klineChart = null;
 
     document.addEventListener('DOMContentLoaded', function() {
-        // 骨架屏初始化时显示，内容区域隐藏
-        // 图表在内容显示后初始化
-
-        // 响应式（图表初始化后绑定）
-
         // 异步加载各个模块
         loadStockHeader();
         loadScoreAndRadar();
@@ -172,7 +168,7 @@
             });
         });
 
-        // K线周期切换（事件委托，内容显示后才生效）
+        // K线周期切换（事件委托）
         document.addEventListener('click', function(e) {
             if (e.target.classList.contains('kline-period')) {
                 document.querySelectorAll('.kline-period').forEach(b => {
@@ -184,6 +180,12 @@
                 loadKline(e.target.dataset.period);
             }
         });
+
+        // 窗口 resize 时，图表自适应
+        window.addEventListener('resize', function() {
+            if (radarChart) radarChart.resize();
+            if (klineChart) klineChart.resize();
+        });
     });
 
     // 异步加载各个模块
@@ -191,18 +193,16 @@
         try {
             const res = await fetch(`/api/stock/${STOCK_CODE}/quote`);
             const data = await res.json();
-            
+
             if (data && !data.error) {
                 document.getElementById('stock-name').textContent = `${data.name || ''} ${STOCK_CODE}`;
                 document.getElementById('stock-industry').textContent = data.industry || '';
                 document.getElementById('stock-price').textContent = data.price?.toFixed(2) || '--';
                 document.getElementById('stock-change').textContent = data.change_pct?.toFixed(2) + '%' || '--';
-                
-                // 显示头部区域
-                const headerSkeleton = document.getElementById('header-skeleton');
-                const headerContent = document.getElementById('stock-header');
-                if (headerSkeleton) headerSkeleton.style.display = 'none';
-                if (headerContent) headerContent.style.display = 'block';
+
+                // 修复：统一使用 classList 切换显示状态，避免与 Tailwind hidden 冲突
+                document.getElementById('header-skeleton').classList.add('hidden');
+                document.getElementById('stock-header').classList.remove('hidden');
             }
         } catch (err) {
             console.error('加载股票基本信息失败:', err);
@@ -213,12 +213,11 @@
         try {
             const res = await fetch(`/api/stock/${STOCK_CODE}/score`);
             const data = await res.json();
-            
+
             if (data && !data.error) {
-                // 显示综合评分
                 const score = data.total_score || 0;
                 document.getElementById('total-score').textContent = score.toFixed(1);
-                
+
                 const badge = document.getElementById('rating-badge');
                 const rating = data.rating || '--';
                 const ratingColors = {
@@ -227,10 +226,9 @@
                     'B': 'bg-yellow-100 text-yellow-700',
                     'C': 'bg-gray-100 text-gray-500'
                 };
-                badge.textContent = rating;
+                badge.textContent = `评级: ${rating}`;
                 badge.className = `mt-2 inline-block px-3 py-1 rounded-full text-sm font-semibold ${ratingColors[rating] || 'bg-gray-100 text-gray-500'}`;
-                
-                // 显示评分明细
+
                 const breakdown = document.getElementById('score-breakdown');
                 if (data.breakdown) {
                     const { fundamental_score, technical_score, valuation_score, capital_score, industry_score, growth_score } = data.breakdown;
@@ -245,65 +243,57 @@
                         </div>
                     `;
                 }
-                
+
                 // 初始化雷达图
-                window._lastScore = data;
-                initRadarChart();
-                
-                // 显示评分区域
-                const scoreSkeleton = document.getElementById('score-skeleton');
-                const scoreContent = document.getElementById('score-content');
-                if (scoreSkeleton) scoreSkeleton.style.display = 'none';
-                if (scoreContent) scoreContent.style.display = 'block';
+                initRadarChart(data);
+
+                // 修复：统一使用 classList
+                document.getElementById('score-skeleton').classList.add('hidden');
+                document.getElementById('score-content').classList.remove('hidden');
             }
         } catch (err) {
             console.error('加载综合评分失败:', err);
         }
     }
 
-    async function loadKline() {
+    async function loadKline(period = 'daily') {
         try {
-            const res = await fetch(`/api/stock/${STOCK_CODE}/kline?period=daily&count=60`);
+            const count = period === 'daily' ? 60 : 120;
+            const res = await fetch(`/api/stock/${STOCK_CODE}/kline?period=${period}&count=${count}`);
             const data = await res.json();
-            
+
             if (data && data.data && data.data.length > 0) {
-                // 保存数据供后续使用
-                window._lastKline = data;
-                
-                // 显示数据截止时间
                 const lastTradeDate = data.data[data.data.length - 1].trade_date;
                 const dateHint = document.getElementById('data-hint');
                 if (lastTradeDate && dateHint) {
                     const year = lastTradeDate.slice(0, 4);
                     const month = parseInt(lastTradeDate.slice(4, 6));
                     const day = parseInt(lastTradeDate.slice(6, 8));
-                    dateHint.textContent = `数据截止${year}-${month}-${day}，交易日数据在收盘后60分钟后刷新！`;
+                    dateHint.textContent = `数据截止${year}-${month}-${day}，交易日数据在收盘后60分钟刷新！`;
                 }
-                
-                // 先显示K线区域（必须在初始化图表之前）
-                const klineSkeleton = document.getElementById('kline-skeleton');
-                const klineContent = document.getElementById('kline-content');
-                if (klineSkeleton) klineSkeleton.style.display = 'none';
-                if (klineContent) klineContent.style.display = 'block';
-                
-                // 等待容器渲染后再初始化图表
-                setTimeout(() => {
-                    initKlineChart();
-                }, 100);
+
+                // 初始化K线图
+                initKlineChart(data);
+
+                // 修复：统一使用 classList
+                document.getElementById('kline-skeleton').classList.add('hidden');
+                document.getElementById('kline-content').classList.remove('hidden');
             }
         } catch (err) {
             console.error('加载K线数据失败:', err);
         }
     }
 
-    // 初始化雷达图
-    function initRadarChart() {
-        const score = window._lastScore;
-        if (!score || !score.breakdown) return;
-        
-        const radarChart = echarts.init(document.getElementById('radar-chart'));
-        const { fundamental_score, technical_score, valuation_score, capital_score, industry_score } = score.breakdown;
-        
+    // 修复：防止 ECharts 重复初始化，直接传入数据避免依赖全局变量
+    function initRadarChart(data) {
+        if (!data || !data.breakdown) return;
+
+        const dom = document.getElementById('radar-chart');
+        // 核心修复：获取已有实例或创建新实例
+        radarChart = echarts.getInstanceByDom(dom) || echarts.init(dom);
+
+        const { fundamental_score, technical_score, valuation_score, capital_score, industry_score } = data.breakdown;
+
         radarChart.setOption({
             radar: {
                 indicator: [
@@ -330,15 +320,17 @@
         });
     }
 
-    // 初始化K线图
-    function initKlineChart() {
-        const klineData = window._lastKline;
+    // 修复：防止 ECharts 重复初始化
+    function initKlineChart(klineData) {
         if (!klineData || !klineData.data) return;
-        
-        const klineChart = echarts.init(document.getElementById('kline-chart'));
+
+        const dom = document.getElementById('kline-chart');
+        // 核心修复：获取已有实例或创建新实例
+        klineChart = echarts.getInstanceByDom(dom) || echarts.init(dom);
+
         const dates = klineData.data.map(item => item.trade_date);
         const values = klineData.data.map(item => [item.open, item.close, item.low, item.high]);
-        
+
         klineChart.setOption({
             xAxis: { type: 'category', data: dates },
             yAxis: { scale: true },
@@ -347,20 +339,6 @@
                 data: values
             }]
         });
-    }
-
-    // 加载 K 线
-    async function loadKline(period) {
-        try {
-            const res = await fetch(`/api/stock/${STOCK_CODE}/kline?period=${period}&count=120`);
-            const data = await res.json();
-            if (data.data && data.data.length > 0) {
-                window._lastKline = data;
-                initKlineChart();
-            }
-        } catch (err) {
-            console.error('K线加载失败:', err);
-        }
     }
 
     // 加载 Tab 内容
@@ -399,12 +377,11 @@
             } else if (tab === 'ai') {
                 html = renderAIAnalysis();
             }
-            // 添加过渡动画
             body.innerHTML = `<div class="tab-transition">${html}</div>`;
         } catch (err) {
             body.innerHTML = `<div class="text-center py-8 text-red-500">加载失败: ${err.message}</div>`;
         }
-        // 切换到内容显示
+
         if (skeleton) skeleton.classList.add('hidden');
         if (body) body.classList.remove('hidden');
     }
