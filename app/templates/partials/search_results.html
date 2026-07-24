@@ -1,0 +1,23 @@
+{# 搜索结果 HTML 片段 #}
+{% if results %}
+<div class="space-y-2">
+    {% for stock in results %}
+    <a href="/stock/{{ stock.code }}" 
+       class="block p-3 bg-gray-50 hover:bg-blue-50 rounded-lg transition-colors">
+        <div class="flex justify-between items-center">
+            <div>
+                <span class="font-semibold text-gray-900">{{ stock.name }}</span>
+                <span class="ml-2 text-sm text-gray-500">{{ stock.code }}</span>
+            </div>
+            {% if stock.market %}
+            <span class="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded">{{ stock.market }}</span>
+            {% endif %}
+        </div>
+    </a>
+    {% endfor %}
+</div>
+{% else %}
+<div class="text-center py-4 text-gray-500">
+    未找到相关股票
+</div>
+{% endif %}

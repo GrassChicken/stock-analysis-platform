@@ -39,3 +39,6 @@ htmlcov/
 # 服务日志
 .service.log
 .pid
+log/
+service.log
+.pid
