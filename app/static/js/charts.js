@@ -43,10 +43,38 @@ function createKlineOption(data) {
     return {
         tooltip: {
             trigger: 'axis',
-            axisPointer: { type: 'cross' },
-            backgroundColor: 'rgba(255,255,255,0.95)',
+            axisPointer: { type: 'cross', crossStyle: { color: '#999' } },
+            backgroundColor: 'rgba(255,255,255,0.98)',
             borderColor: '#e5e7eb',
-            textStyle: { color: '#374151', fontSize: 12 }
+            borderWidth: 1,
+            padding: [12, 16],
+            textStyle: { color: '#1f2937', fontSize: 13 },
+            extraCssText: 'box-shadow: 0 8px 24px rgba(0,0,0,0.08); border-radius: 8px;',
+            formatter: function(params) {
+                if (!params || params.length === 0) return '';
+                const date = params[0].axisValue;
+                let html = `<div style="font-weight:600;color:#6b7280;margin-bottom:8px;font-size:12px">${date}</div>`;
+                params.forEach(p => {
+                    if (p.seriesType === 'candlestick' && p.data) {
+                        const [open, close, low, high] = p.data;
+                        const change = close - open;
+                        const pct = ((change / open) * 100).toFixed(2);
+                        const color = change >= 0 ? RISE_COLOR : FALL_COLOR;
+                        const arrow = change >= 0 ? '▲' : '▼';
+                        html += `<div style="margin-bottom:10px">`;
+                        html += `<div style="display:flex;justify-content:space-between;gap:24px;margin-bottom:4px"><span style="color:#6b7280">开</span><span style="font-weight:600;color:#1f2937">${open.toFixed(2)}</span></div>`;
+                        html += `<div style="display:flex;justify-content:space-between;gap:24px;margin-bottom:4px"><span style="color:#6b7280">收</span><span style="font-weight:600;color:${color}">${close.toFixed(2)} <span style="font-size:11px">${arrow} ${pct}%</span></span></div>`;
+                        html += `<div style="display:flex;justify-content:space-between;gap:24px;margin-bottom:4px"><span style="color:#6b7280">高</span><span style="font-weight:600;color:#1f2937">${high.toFixed(2)}</span></div>`;
+                        html += `<div style="display:flex;justify-content:space-between;gap:24px"><span style="color:#6b7280">低</span><span style="font-weight:600;color:#1f2937">${low.toFixed(2)}</span></div>`;
+                        html += `</div>`;
+                    }
+                    if (p.seriesType === 'bar' && p.seriesName === '成交量') {
+                        const vol = p.data;
+                        html += `<div style="display:flex;justify-content:space-between;gap:24px;padding-top:8px;border-top:1px dashed #e5e7eb"><span style="color:#6b7280">成交量</span><span style="font-weight:600;color:#1f2937">${(vol / 10000).toFixed(2)}万手</span></div>`;
+                    }
+                });
+                return html;
+            }
         },
         grid: [
             { left: '8%', right: '3%', top: '5%', height: '60%' },
@@ -100,7 +128,28 @@ function createKlineOption(data) {
  */
 function createRadarOption(scores) {
     return {
-        tooltip: {},
+        tooltip: {
+            trigger: 'item',
+            backgroundColor: 'rgba(255,255,255,0.98)',
+            borderColor: '#e5e7eb',
+            borderWidth: 1,
+            padding: [10, 14],
+            textStyle: { color: '#1f2937', fontSize: 13 },
+            extraCssText: 'box-shadow: 0 8px 24px rgba(0,0,0,0.08); border-radius: 8px;',
+            formatter: function(params) {
+                if (!params || !params.data) return '';
+                const dims = ['基本面', '技术面', '资金面', '估值面', '行业面'];
+                const vals = params.data.value;
+                let html = `<div style="font-weight:600;color:#2563eb;margin-bottom:8px">六维评分</div>`;
+                dims.forEach((name, i) => {
+                    const v = vals[i] || 0;
+                    const color = v >= 80 ? '#16a34a' : v >= 60 ? '#2563eb' : v >= 40 ? '#ca8a04' : '#dc2626';
+                    const bar = `<div style="width:60px;height:6px;background:#f1f5f9;border-radius:3px;display:inline-block;vertical-align:middle;margin-left:6px"><div style="width:${v}%;height:100%;background:${color};border-radius:3px"></div></div>`;
+                    html += `<div style="display:flex;justify-content:space-between;gap:16px;margin-bottom:4px;align-items:center"><span style="color:#6b7280">${name}</span><span style="font-weight:600;color:#1f2937">${v.toFixed(1)}${bar}</span></div>`;
+                });
+                return html;
+            }
+        },
         radar: {
             indicator: [
                 { name: '基本面', max: 100 },
@@ -136,7 +185,32 @@ function createRadarOption(scores) {
  */
 function createCapitalFlowOption(data) {
     return {
-        tooltip: { trigger: 'axis' },
+        tooltip: {
+            trigger: 'axis',
+            backgroundColor: 'rgba(255,255,255,0.98)',
+            borderColor: '#e5e7eb',
+            borderWidth: 1,
+            padding: [10, 14],
+            textStyle: { color: '#1f2937', fontSize: 13 },
+            extraCssText: 'box-shadow: 0 8px 24px rgba(0,0,0,0.08); border-radius: 8px;',
+            formatter: function(params) {
+                if (!params || params.length === 0) return '';
+                const date = params[0].axisValue;
+                let html = `<div style="font-weight:600;color:#6b7280;margin-bottom:8px;font-size:12px">${date}</div>`;
+                let netFlow = 0;
+                params.forEach(p => {
+                    const val = Math.abs(p.data);
+                    const color = p.seriesName === '主力流入' ? RISE_COLOR : FALL_COLOR;
+                    const icon = p.seriesName === '主力流入' ? '↑' : '↓';
+                    html += `<div style="display:flex;justify-content:space-between;gap:24px;margin-bottom:4px"><span style="color:${color}">${icon} ${p.seriesName}</span><span style="font-weight:600;color:#1f2937">${val.toFixed(2)}万</span></div>`;
+                    if (p.seriesName === '主力流入') netFlow += val;
+                    else netFlow -= val;
+                });
+                const netColor = netFlow >= 0 ? RISE_COLOR : FALL_COLOR;
+                html += `<div style="display:flex;justify-content:space-between;gap:24px;padding-top:8px;border-top:1px dashed #e5e7eb;margin-top:4px"><span style="color:#6b7280">净流入</span><span style="font-weight:700;color:${netColor}">${netFlow >= 0 ? '+' : ''}${netFlow.toFixed(2)}万</span></div>`;
+                return html;
+            }
+        },
         legend: { data: ['主力流入', '主力流出'] },
         grid: { left: '10%', right: '5%', bottom: '15%' },
         xAxis: { type: 'category', data: data.dates },
@@ -165,6 +239,23 @@ function createCapitalFlowOption(data) {
  */
 function createValuationGaugeOption(value, label) {
     return {
+        tooltip: {
+            trigger: 'item',
+            backgroundColor: 'rgba(255,255,255,0.98)',
+            borderColor: '#e5e7eb',
+            borderWidth: 1,
+            padding: [10, 14],
+            textStyle: { color: '#1f2937', fontSize: 13 },
+            extraCssText: 'box-shadow: 0 8px 24px rgba(0,0,0,0.08); border-radius: 8px;',
+            formatter: function(params) {
+                const val = params.value;
+                let status, color;
+                if (val < 30) { status = '低估'; color = '#16a34a'; }
+                else if (val < 70) { status = '合理'; color = '#ca8a04'; }
+                else { status = '高估'; color = '#dc2626'; }
+                return `<div style="text-align:center"><div style="font-size:12px;color:#6b7280;margin-bottom:4px">${label || '估值分位'}</div><div style="font-size:20px;font-weight:700;color:${color}">${val.toFixed(1)}%</div><div style="font-size:12px;color:${color};margin-top:4px">${status}</div></div>`;
+            }
+        },
         series: [{
             type: 'gauge',
             startAngle: 200,

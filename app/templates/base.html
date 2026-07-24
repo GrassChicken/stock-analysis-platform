@@ -38,8 +38,8 @@
         .bg-rise { background-color: #ef4444; }
         .bg-fall { background-color: #22c55e; }
         /* 卡片悬浮效果 */
-        .card-hover { transition: transform 0.2s, box-shadow 0.2s; }
-        .card-hover:hover { transform: translateY(-2px); box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1); }
+        .card-hover { transition: transform 0.25s cubic-bezier(.4,0,.2,1), box-shadow 0.25s cubic-bezier(.4,0,.2,1), border-color 0.25s ease; border: 1px solid transparent; }
+        .card-hover:hover { transform: translateY(-4px); box-shadow: 0 20px 40px -12px rgba(0,0,0,0.12), 0 4px 12px -2px rgba(0,0,0,0.06); border-color: #e2e8f0; }
         /* 渐变标题 */
         .gradient-text { background: linear-gradient(135deg, #1e3a5f, #2563eb); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
         /* 骨架屏 */
