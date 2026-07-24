@@ -1,0 +1,27 @@
+<!-- K线图 - 骨架屏 -->
+<div id="kline-skeleton" class="lg:col-span-2 bg-white rounded-xl shadow-sm p-5">
+    <div class="flex items-center justify-between mb-3">
+        <div class="h-4 bg-gray-200 rounded w-20 skeleton"></div>
+        <div class="flex space-x-2">
+            <div class="h-6 bg-gray-200 rounded w-12 skeleton"></div>
+            <div class="h-6 bg-gray-200 rounded w-12 skeleton"></div>
+            <div class="h-6 bg-gray-200 rounded w-12 skeleton"></div>
+        </div>
+    </div>
+    <div class="h-80 bg-gray-200 rounded skeleton"></div>
+    <div class="h-4 bg-gray-200 rounded w-48 mx-auto mt-2 skeleton"></div>
+</div>
+
+<!-- K线图 - 实际内容（初始隐藏） -->
+<div id="kline-content" class="lg:col-span-2 bg-white rounded-xl shadow-sm p-5 hidden">
+    <div class="flex items-center justify-between mb-3">
+        <h3 class="text-xs sm:text-sm font-semibold text-gray-500">K线走势</h3>
+        <div class="flex space-x-1">
+            <button class="kline-period btn-press px-2 sm:px-3 py-1 text-xs rounded bg-primary-500 text-white" data-period="daily">日K</button>
+            <button class="kline-period btn-press px-2 sm:px-3 py-1 text-xs rounded bg-gray-100 text-gray-600 hover:bg-gray-200" data-period="weekly">周K</button>
+            <button class="kline-period btn-press px-2 sm:px-3 py-1 text-xs rounded bg-gray-100 text-gray-600 hover:bg-gray-200" data-period="monthly">月K</button>
+        </div>
+    </div>
+    <div id="kline-chart" class="w-full h-64 sm:h-72 lg:h-80"></div>
+    <div id="data-hint" class="mt-2 text-xs text-gray-400 text-center"></div>
+</div>

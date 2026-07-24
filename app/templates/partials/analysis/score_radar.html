@@ -1,0 +1,28 @@
+<!-- 综合评分 - 骨架屏 -->
+<div id="score-skeleton" class="bg-white rounded-xl shadow-sm p-5">
+    <div class="h-4 bg-gray-200 rounded w-24 mb-4 skeleton"></div>
+    <div class="text-center py-6">
+        <div class="h-16 bg-gray-200 rounded w-32 mx-auto mb-3 skeleton"></div>
+        <div class="h-6 bg-gray-200 rounded w-20 mx-auto mb-4 skeleton"></div>
+        <div class="space-y-2">
+            <div class="h-3 bg-gray-200 rounded skeleton"></div>
+            <div class="h-3 bg-gray-200 rounded skeleton"></div>
+            <div class="h-3 bg-gray-200 rounded skeleton"></div>
+        </div>
+    </div>
+    <div class="h-48 bg-gray-200 rounded skeleton"></div>
+</div>
+
+<!-- 综合评分 - 实际内容（初始隐藏） -->
+<div id="score-content" class="bg-white rounded-xl shadow-sm p-5 card-hover hidden">
+    <h3 class="text-sm font-semibold text-gray-500 mb-3">综合评分</h3>
+    <div class="text-center py-6">
+        <div id="total-score" class="text-4xl sm:text-5xl font-bold gradient-text tabular-nums">--</div>
+        <div id="rating-badge" class="mt-2 inline-block px-3 py-1 rounded-full bg-gray-100 text-gray-500 text-sm font-semibold">
+            评级: --
+        </div>
+        <div id="score-breakdown" class="mt-4 space-y-2 text-xs text-gray-500"></div>
+    </div>
+    <!-- 五维雷达图 -->
+    <div id="radar-chart" class="w-full h-40 sm:h-48"></div>
+</div>
