@@ -55,11 +55,15 @@ async function loadScoreAndRadar() {
             }
 
             // 初始化雷达图
-            initRadarChart(data);
-
-            // 切换骨架屏 → 实际内容
+            // ★ 关键修复：先让容器可见，再初始化图表（同 K 线图修复）
             document.getElementById('score-skeleton').classList.add('hidden');
             document.getElementById('score-content').classList.remove('hidden');
+
+            // 等 DOM 重绘后再初始化图表，确保容器已有正确宽高
+            requestAnimationFrame(() => {
+                initRadarChart(data);
+                if (window.radarChart) window.radarChart.resize();
+            });
         }
     } catch (err) {
         console.error('[score-radar] 加载综合评分失败:', err);
