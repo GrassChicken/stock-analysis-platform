@@ -3,16 +3,30 @@
 {% block content %}
 <div class="space-y-6">
 
-    <!-- 股票头部信息 -->
-    <div id="stock-header" class="bg-white rounded-xl shadow-sm p-6">
+    <!-- 股票头部信息 - 骨架屏 -->
+    <div id="header-skeleton" class="bg-white rounded-xl shadow-sm p-6">
+        <div class="flex items-center justify-between">
+            <div class="flex-1">
+                <div class="h-8 bg-gray-200 rounded w-48 mb-2 skeleton"></div>
+                <div class="h-4 bg-gray-200 rounded w-32 skeleton"></div>
+            </div>
+            <div class="text-right">
+                <div class="h-10 bg-gray-200 rounded w-24 mb-2 ml-auto skeleton"></div>
+                <div class="h-4 bg-gray-200 rounded w-20 ml-auto skeleton"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 股票头部信息 - 实际内容（初始隐藏） -->
+    <div id="stock-header" class="bg-white rounded-xl shadow-sm p-6 hidden">
         <div class="flex items-center justify-between">
             <div>
                 <h1 id="stock-name" class="text-2xl font-bold text-gray-800">{{ stock_code }}</h1>
-                <p id="stock-industry" class="text-sm text-gray-500 mt-1">加载中...</p>
+                <p id="stock-industry" class="text-sm text-gray-500 mt-1">--</p>
             </div>
             <div class="text-right">
-                <div id="stock-price" class="text-3xl font-bold tabular-nums text-rise">--</div>
-                <div id="stock-change" class="text-sm tabular-nums text-rise">-- (--%)</div>
+                <div id="stock-price" class="text-3xl font-bold tabular-nums">--</div>
+                <div id="stock-change" class="text-sm tabular-nums">-- (--%)</div>
             </div>
         </div>
     </div>
@@ -20,8 +34,23 @@
     <!-- 综合评分 + K线图 -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
-        <!-- 左: 综合评分 -->
-        <div class="bg-white rounded-xl shadow-sm p-5 card-hover">
+        <!-- 左: 综合评分 - 骨架屏 -->
+        <div id="score-skeleton" class="bg-white rounded-xl shadow-sm p-5">
+            <div class="h-4 bg-gray-200 rounded w-24 mb-4 skeleton"></div>
+            <div class="text-center py-6">
+                <div class="h-16 bg-gray-200 rounded w-32 mx-auto mb-3 skeleton"></div>
+                <div class="h-6 bg-gray-200 rounded w-20 mx-auto mb-4 skeleton"></div>
+                <div class="space-y-2">
+                    <div class="h-3 bg-gray-200 rounded skeleton"></div>
+                    <div class="h-3 bg-gray-200 rounded skeleton"></div>
+                    <div class="h-3 bg-gray-200 rounded skeleton"></div>
+                </div>
+            </div>
+            <div class="h-48 bg-gray-200 rounded skeleton"></div>
+        </div>
+
+        <!-- 左: 综合评分 - 实际内容（初始隐藏） -->
+        <div id="score-content" class="bg-white rounded-xl shadow-sm p-5 card-hover hidden">
             <h3 class="text-sm font-semibold text-gray-500 mb-3">综合评分</h3>
             <div class="text-center py-6">
                 <div id="total-score" class="text-5xl font-bold gradient-text tabular-nums">--</div>
@@ -34,8 +63,22 @@
             <div id="radar-chart" class="w-full h-48"></div>
         </div>
 
-        <!-- 右: K线图 -->
-        <div class="lg:col-span-2 bg-white rounded-xl shadow-sm p-5">
+        <!-- 右: K线图 - 骨架屏 -->
+        <div id="kline-skeleton" class="lg:col-span-2 bg-white rounded-xl shadow-sm p-5">
+            <div class="flex items-center justify-between mb-3">
+                <div class="h-4 bg-gray-200 rounded w-20 skeleton"></div>
+                <div class="flex space-x-2">
+                    <div class="h-6 bg-gray-200 rounded w-12 skeleton"></div>
+                    <div class="h-6 bg-gray-200 rounded w-12 skeleton"></div>
+                    <div class="h-6 bg-gray-200 rounded w-12 skeleton"></div>
+                </div>
+            </div>
+            <div class="h-80 bg-gray-200 rounded skeleton"></div>
+            <div class="h-4 bg-gray-200 rounded w-48 mx-auto mt-2 skeleton"></div>
+        </div>
+
+        <!-- 右: K线图 - 实际内容（初始隐藏） -->
+        <div id="kline-content" class="lg:col-span-2 bg-white rounded-xl shadow-sm p-5 hidden">
             <div class="flex items-center justify-between mb-3">
                 <h3 class="text-sm font-semibold text-gray-500">K线走势</h3>
                 <div class="flex space-x-1">
@@ -62,8 +105,36 @@
             </nav>
         </div>
         <div id="tab-content" class="p-5">
-            <p id="tab-loading" class="text-sm text-gray-400 text-center py-8">加载中...</p>
-            <div id="tab-body"></div>
+            <!-- Tab骨架屏 -->
+            <div id="tab-skeleton">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <div class="h-4 bg-gray-200 rounded w-24 mb-3 skeleton"></div>
+                        <div class="space-y-2">
+                            <div class="h-3 bg-gray-200 rounded skeleton"></div>
+                            <div class="h-3 bg-gray-200 rounded skeleton"></div>
+                            <div class="h-3 bg-gray-200 rounded skeleton"></div>
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <div class="h-4 bg-gray-200 rounded w-24 mb-3 skeleton"></div>
+                        <div class="space-y-2">
+                            <div class="h-3 bg-gray-200 rounded skeleton"></div>
+                            <div class="h-3 bg-gray-200 rounded skeleton"></div>
+                            <div class="h-3 bg-gray-200 rounded skeleton"></div>
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <div class="h-4 bg-gray-200 rounded w-24 mb-3 skeleton"></div>
+                        <div class="space-y-2">
+                            <div class="h-3 bg-gray-200 rounded skeleton"></div>
+                            <div class="h-3 bg-gray-200 rounded skeleton"></div>
+                            <div class="h-3 bg-gray-200 rounded skeleton"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div id="tab-body" class="hidden"></div>
         </div>
     </div>
 
@@ -77,12 +148,10 @@
     let radarChart, klineChart;
 
     document.addEventListener('DOMContentLoaded', function() {
-        // 初始化图表
-        radarChart = echarts.init(document.getElementById('radar-chart'));
-        klineChart = echarts.init(document.getElementById('kline-chart'));
+        // 骨架屏初始化时显示，内容区域隐藏
+        // 图表在内容显示后初始化
 
-        // 响应式
-        window.addEventListener('resize', () => { radarChart.resize(); klineChart.resize(); });
+        // 响应式（图表初始化后绑定）
 
         // 加载数据
         loadAllData();
@@ -100,17 +169,17 @@
             });
         });
 
-        // K线周期切换
-        document.querySelectorAll('.kline-period').forEach(btn => {
-            btn.addEventListener('click', function() {
+        // K线周期切换（事件委托，内容显示后才生效）
+        document.addEventListener('click', function(e) {
+            if (e.target.classList.contains('kline-period')) {
                 document.querySelectorAll('.kline-period').forEach(b => {
                     b.classList.remove('bg-primary-500', 'text-white');
                     b.classList.add('bg-gray-100', 'text-gray-600');
                 });
-                this.classList.add('bg-primary-500', 'text-white');
-                this.classList.remove('bg-gray-100', 'text-gray-600');
-                loadKline(this.dataset.period);
-            });
+                e.target.classList.add('bg-primary-500', 'text-white');
+                e.target.classList.remove('bg-gray-100', 'text-gray-600');
+                loadKline(e.target.dataset.period);
+            }
         });
     });
 
@@ -122,6 +191,10 @@
                 fetch(`/api/stock/${STOCK_CODE}/score`).then(r => r.json()),
                 fetch(`/api/stock/${STOCK_CODE}/kline?period=daily&count=60`).then(r => r.json())
             ]);
+
+            // 缓存数据供图表初始化使用
+            window._lastScore = score;
+            window._lastKline = kline;
 
             // 填充头部信息
             if (quote && !quote.error) {
@@ -164,20 +237,11 @@
                     `;
                 }
 
-                // 雷达图
-                radarChart.setOption(Charts.createRadarOption([
-                    score.breakdown?.fundamental_score || 0,
-                    score.breakdown?.technical_score || 0,
-                    score.breakdown?.capital_score || 0,
-                    score.breakdown?.valuation_score || 0,
-                    score.breakdown?.industry_score || 0
-                ]));
+                // 雷达图（在 hideSkeleton 中初始化）
             }
 
             // K线图
             if (kline && kline.data && kline.data.length > 0) {
-                klineChart.setOption(Charts.createKlineOption(kline.data));
-                
                 // 显示数据截止时间
                 const lastTradeDate = kline.data[kline.data.length - 1].trade_date;
                 const dateHint = document.getElementById('data-hint');
@@ -189,10 +253,58 @@
                 }
             }
 
+            // 隐藏骨架屏，显示内容
+            hideSkeleton();
+
         } catch (err) {
             console.error('加载数据失败:', err);
+            hideSkeleton();
             document.getElementById('stock-name').textContent = '数据加载失败';
         }
+    }
+
+    // 隐藏骨架屏，显示内容区域
+    function hideSkeleton() {
+        // 头部
+        const headerSkeleton = document.getElementById('header-skeleton');
+        const headerContent = document.getElementById('stock-header');
+        if (headerSkeleton) headerSkeleton.classList.add('hidden');
+        if (headerContent) headerContent.classList.remove('hidden');
+
+        // 评分
+        const scoreSkeleton = document.getElementById('score-skeleton');
+        const scoreContent = document.getElementById('score-content');
+        if (scoreSkeleton) scoreSkeleton.classList.add('hidden');
+        if (scoreContent) scoreContent.classList.remove('hidden');
+
+        // K线
+        const klineSkeleton = document.getElementById('kline-skeleton');
+        const klineContent = document.getElementById('kline-content');
+        if (klineSkeleton) klineSkeleton.classList.add('hidden');
+        if (klineContent) klineContent.classList.remove('hidden');
+
+        // 初始化图表（内容显示后才能正确初始化）
+        setTimeout(() => {
+            radarChart = echarts.init(document.getElementById('radar-chart'));
+            klineChart = echarts.init(document.getElementById('kline-chart'));
+            window.addEventListener('resize', () => { radarChart.resize(); klineChart.resize(); });
+
+            // 重新填充图表数据
+            const score = window._lastScore;
+            if (score && score.breakdown) {
+                radarChart.setOption(Charts.createRadarOption([
+                    score.breakdown?.fundamental_score || 0,
+                    score.breakdown?.technical_score || 0,
+                    score.breakdown?.capital_score || 0,
+                    score.breakdown?.valuation_score || 0,
+                    score.breakdown?.industry_score || 0
+                ]));
+            }
+            const kline = window._lastKline;
+            if (kline && kline.data && kline.data.length > 0) {
+                klineChart.setOption(Charts.createKlineOption(kline.data));
+            }
+        }, 100);
     }
 
     // 加载 K 线
@@ -210,10 +322,10 @@
 
     // 加载 Tab 内容
     async function loadTabContent(tab) {
-        const loading = document.getElementById('tab-loading');
+        const skeleton = document.getElementById('tab-skeleton');
         const body = document.getElementById('tab-body');
-        loading.style.display = 'block';
-        body.innerHTML = '';
+        if (skeleton) skeleton.classList.remove('hidden');
+        if (body) body.classList.add('hidden');
 
         try {
             let html = '';
@@ -246,7 +358,9 @@
         } catch (err) {
             body.innerHTML = `<div class="text-center py-8 text-red-500">加载失败: ${err.message}</div>`;
         }
-        loading.style.display = 'none';
+        // 切换到内容显示
+        if (skeleton) skeleton.classList.add('hidden');
+        if (body) body.classList.remove('hidden');
     }
 
     // 渲染基本面
