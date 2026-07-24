@@ -1,0 +1,235 @@
+{% extends "base.html" %}
+
+{% block title %}AI 智能分析 - {{ stock_info.name }}{% endblock %}
+
+{% block extra_head %}
+<style>
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .fade-in {
+        animation: fadeIn 0.3s ease-out;
+    }
+    
+    .markdown-content {
+        line-height: 1.8;
+    }
+    
+    .markdown-content h2 {
+        font-size: 1.5rem;
+        font-weight: 600;
+        margin-top: 1.5rem;
+        margin-bottom: 0.75rem;
+        color: #1e40af;
+    }
+    
+    .markdown-content h3 {
+        font-size: 1.25rem;
+        font-weight: 600;
+        margin-top: 1.25rem;
+        margin-bottom: 0.5rem;
+        color: #1e40af;
+    }
+    
+    .markdown-content ul {
+        list-style-type: disc;
+        padding-left: 1.5rem;
+        margin: 0.75rem 0;
+    }
+    
+    .markdown-content li {
+        margin: 0.25rem 0;
+    }
+    
+    .markdown-content strong {
+        color: #dc2626;
+        font-weight: 600;
+    }
+    
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+    
+    .loading-dots {
+        animation: pulse 1.5s ease-in-out infinite;
+    }
+    
+    .loading-dots::after {
+        content: '...';
+        animation: dots 1.5s steps(4, end) infinite;
+    }
+    
+    @keyframes dots {
+        0%, 20% { content: ''; }
+        40% { content: '.'; }
+        60% { content: '..'; }
+        80%, 100% { content: '...'; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto px-4 py-6">
+    <!-- 返回按钮 -->
+    <div class="mb-6">
+        <a href="/stock/{{ stock_info.code }}" class="inline-flex items-center text-primary-600 hover:text-primary-700 font-medium">
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+            </svg>
+            返回深度分析
+        </a>
+    </div>
+    
+    <!-- 股票信息头部 -->
+    <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900">{{ stock_info.name }}</h1>
+                <p class="text-gray-500 mt-1">{{ stock_info.code }} · {{ stock_info.industry }}</p>
+            </div>
+            <div class="text-right">
+                <div class="text-3xl font-bold text-primary-600">¥{{ stock_info.price }}</div>
+                <div class="text-sm {% if stock_info.change_pct >= 0 %}text-red-500{% else %}text-green-500{% endif %}">
+                    {{ stock_info.change_pct >= 0 and '+' or '' }}{{ stock_info.change_pct }}%
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- AI 分析按钮 -->
+    <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
+        <div class="flex items-center justify-between">
+            <div>
+                <h2 class="text-lg font-semibold text-gray-900">AI 智能分析</h2>
+                <p class="text-sm text-gray-500 mt-1">基于六维评分数据，AI 为您提供专业投资建议</p>
+            </div>
+            <button id="analyzeBtn" onclick="startAnalysis()" class="px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-medium transition-colors">
+                开始分析
+            </button>
+        </div>
+    </div>
+    
+    <!-- 分析结果区域 -->
+    <div id="resultArea" class="hidden">
+        <!-- 加载状态 -->
+        <div id="loadingState" class="bg-white rounded-lg shadow-sm p-8 text-center">
+            <div class="inline-block">
+                <svg class="w-12 h-12 text-primary-600 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+            </div>
+            <p class="mt-4 text-gray-600 font-medium loading-dots">AI 正在分析</p>
+            <p class="mt-2 text-sm text-gray-400">通常需要 10-30 秒，请耐心等待</p>
+        </div>
+        
+        <!-- 分析结果 -->
+        <div id="analysisResult" class="hidden bg-white rounded-lg shadow-sm p-8 fade-in">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-xl font-semibold text-gray-900">📊 AI 分析报告</h2>
+                <div class="text-sm text-gray-400">
+                    <span id="analysisTime"></span>
+                </div>
+            </div>
+            <div class="markdown-content text-gray-700" id="analysisContent"></div>
+            
+            <!-- 免责声明 -->
+            <div class="mt-8 pt-6 border-t border-gray-200">
+                <p class="text-xs text-gray-400 text-center">
+                    ⚠️ 免责声明：以上分析由 AI 生成，仅供参考，不构成投资建议。投资有风险，入市需谨慎。
+                </p>
+            </div>
+        </div>
+        
+        <!-- 错误状态 -->
+        <div id="errorState" class="hidden bg-white rounded-lg shadow-sm p-8 text-center">
+            <svg class="w-16 h-16 text-red-500 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <p class="mt-4 text-gray-900 font-medium">分析失败</p>
+            <p id="errorMessage" class="mt-2 text-sm text-red-500"></p>
+            <button onclick="startAnalysis()" class="mt-4 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 text-sm font-medium">
+                重试
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+async function startAnalysis() {
+    const btn = document.getElementById('analyzeBtn');
+    const resultArea = document.getElementById('resultArea');
+    const loadingState = document.getElementById('loadingState');
+    const analysisResult = document.getElementById('analysisResult');
+    const errorState = document.getElementById('errorState');
+    
+    // 禁用按钮，显示加载状态
+    btn.disabled = true;
+    btn.classList.add('opacity-50', 'cursor-not-allowed');
+    btn.textContent = '分析中...';
+    
+    resultArea.classList.remove('hidden');
+    loadingState.classList.remove('hidden');
+    analysisResult.classList.add('hidden');
+    errorState.classList.add('hidden');
+    
+    try {
+        const response = await fetch('/api/stock/{{ stock_info.code }}/ai');
+        const data = await response.json();
+        
+        if (data.success) {
+            // 显示分析结果
+            loadingState.classList.add('hidden');
+            analysisResult.classList.remove('hidden');
+            
+            // 格式化 Markdown
+            const formattedContent = formatMarkdown(data.analysis);
+            document.getElementById('analysisContent').innerHTML = formattedContent;
+            document.getElementById('analysisTime').textContent = `生成时间：${new Date().toLocaleString('zh-CN')}`;
+        } else {
+            // 显示错误
+            loadingState.classList.add('hidden');
+            errorState.classList.remove('hidden');
+            document.getElementById('errorMessage').textContent = data.error || '未知错误';
+        }
+    } catch (error) {
+        console.error('AI 分析失败:', error);
+        loadingState.classList.add('hidden');
+        errorState.classList.remove('hidden');
+        document.getElementById('errorMessage').textContent = '网络错误，请稍后重试';
+    } finally {
+        // 恢复按钮
+        btn.disabled = false;
+        btn.classList.remove('opacity-50', 'cursor-not-allowed');
+        btn.textContent = '重新分析';
+    }
+}
+
+function formatMarkdown(text) {
+    // 简单的 Markdown 格式化
+    return text
+        // 标题
+        .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+        .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+        // 粗体
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        // 斜体
+        .replace(/\*(.+?)\*/g, '<em>$1</em>')
+        // 无序列表
+        .replace(/^[\-\*] (.+)$/gm, '<li>$1</li>')
+        .replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>')
+        // 有序列表
+        .replace(/^\d+\. (.+)$/gm, '<li>$1</li>')
+        // 段落
+        .replace(/\n\n/g, '</p><p>')
+        // 换行
+        .replace(/\n/g, '<br>')
+        // 包裹段落
+        .replace(/^/, '<p>')
+        .replace(/$/, '</p>');
+}
+</script>
+{% endblock %}

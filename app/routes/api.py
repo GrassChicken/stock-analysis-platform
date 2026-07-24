@@ -151,6 +151,51 @@ def get_industry(code: str):
         return jsonify({"error": str(e)}), 500
 
 
+@api_bp.route("/stock/<code>/ai")
+def get_ai_analysis(code: str):
+    """AI 智能分析"""
+    try:
+        from app.services.analysis.ai_analyzer import AIAnalyzer
+        
+        # 检查 API Key 是否配置
+        import os
+        api_key = os.getenv('AI_API_KEY')
+        if not api_key:
+            return jsonify({
+                "error": "AI_API_KEY 未配置",
+                "message": "请在 .env 文件中配置 AI_API_KEY"
+            }), 500
+        
+        # 获取六维评分数据
+        scorer = StockScorer()
+        score_data = scorer.score(code)
+        
+        if 'error' in score_data:
+            return jsonify({"error": score_data['error']}), 500
+        
+        # 构建 AI 分析数据
+        ai_data = {
+            'code': code,
+            'total_score': score_data.get('total_score', 0),
+            'rating': score_data.get('rating', ''),
+            'breakdown': score_data.get('breakdown', {}),
+            'weights': score_data.get('weights', {}),
+            'fundamental': score_data.get('details', {}).get('fundamental', {}),
+            'valuation': score_data.get('details', {}).get('valuation', {}),
+            'technical': score_data.get('details', {}).get('technical', {}),
+            'capital': score_data.get('details', {}).get('capital', {}),
+            'industry': score_data.get('details', {}).get('industry', {})
+        }
+        
+        # 调用 AI 分析
+        analyzer = AIAnalyzer()
+        result = analyzer.analyze(ai_data)
+        
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 # ==================== 自选股 ====================
 
 @api_bp.route("/watchlist")
