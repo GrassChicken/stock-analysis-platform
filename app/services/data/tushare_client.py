@@ -5,6 +5,7 @@ Tushare 数据客户端
 """
 import logging
 from typing import List, Dict, Any, Optional
+from datetime import datetime, timedelta
 import tushare as ts
 import pandas as pd
 
@@ -27,6 +28,18 @@ class TushareClient:
             logger.info("✓ Tushare API 初始化成功")
         except Exception as e:
             logger.error(f"✗ Tushare API 初始化失败: {e}")
+    
+    def _format_code(self, code: str) -> str:
+        """格式化股票代码为 Tushare 格式 (如 000001.SZ)"""
+        code = code.strip()
+        if '.' in code:
+            return code.upper()
+        
+        # 根据代码判断交易所
+        if code.startswith(('6', '9')):
+            return f"{code}.SH"
+        else:
+            return f"{code}.SZ"
     
     def get_stock_basic(self, exchange: str = '', list_status: str = 'L') -> pd.DataFrame:
         """
@@ -69,6 +82,8 @@ class TushareClient:
         if not self.pro:
             return pd.DataFrame()
         
+        ts_code = self._format_code(ts_code)
+        
         try:
             df = self.pro.daily(
                 ts_code=ts_code,
@@ -94,6 +109,8 @@ class TushareClient:
         """
         if not self.pro:
             return pd.DataFrame()
+        
+        ts_code = self._format_code(ts_code)
         
         try:
             df = self.pro.daily_basic(
@@ -121,6 +138,8 @@ class TushareClient:
         if not self.pro:
             return pd.DataFrame()
         
+        ts_code = self._format_code(ts_code)
+        
         try:
             df = self.pro.income(
                 ts_code=ts_code,
@@ -145,6 +164,8 @@ class TushareClient:
         """
         if not self.pro:
             return pd.DataFrame()
+        
+        ts_code = self._format_code(ts_code)
         
         try:
             df = self.pro.balancesheet(
@@ -171,6 +192,8 @@ class TushareClient:
         if not self.pro:
             return pd.DataFrame()
         
+        ts_code = self._format_code(ts_code)
+        
         try:
             df = self.pro.cashflow(
                 ts_code=ts_code,
@@ -196,6 +219,8 @@ class TushareClient:
         if not self.pro:
             return pd.DataFrame()
         
+        ts_code = self._format_code(ts_code)
+        
         try:
             df = self.pro.fina_indicator(
                 ts_code=ts_code,
@@ -205,6 +230,89 @@ class TushareClient:
             return df
         except Exception as e:
             logger.error(f"获取财务指标失败: {e}")
+            return pd.DataFrame()
+    
+    def get_quote(self, ts_code: str) -> Dict[str, Any]:
+        """
+        获取实时行情
+        
+        Args:
+            ts_code: 股票代码
+        
+        Returns:
+            行情字典
+        """
+        if not self.pro:
+            return {}
+        
+        ts_code = self._format_code(ts_code)
+        
+        try:
+            # 获取最新交易日的行情
+            today = datetime.now().strftime('%Y%m%d')
+            df = self.pro.daily(ts_code=ts_code, start_date=today, end_date=today)
+            
+            if df.empty:
+                # 如果今天没有数据，尝试获取最近一天
+                df = self.pro.daily(ts_code=ts_code, start_date=today, end_date=today)
+                if df.empty:
+                    return {}
+            
+            row = df.iloc[0]
+            return {
+                'code': ts_code,
+                'name': '',  # 需要从 stock_basic 获取
+                'price': row.get('close', 0),
+                'open': row.get('open', 0),
+                'high': row.get('high', 0),
+                'low': row.get('low', 0),
+                'pre_close': row.get('pre_close', 0),
+                'change': row.get('close', 0) - row.get('pre_close', 0),
+                'change_pct': ((row.get('close', 0) - row.get('pre_close', 0)) / row.get('pre_close', 1) * 100),
+                'vol': row.get('vol', 0),
+                'amount': row.get('amount', 0),
+                'trade_date': row.get('trade_date', ''),
+            }
+        except Exception as e:
+            logger.error(f"获取实时行情失败: {e}")
+            return {}
+    
+    def get_kline(self, ts_code: str, period: str = 'daily', count: int = 100) -> pd.DataFrame:
+        """
+        获取K线数据
+        
+        Args:
+            ts_code: 股票代码
+            period: 周期 daily/weekly/monthly
+            count: 数据条数
+        
+        Returns:
+            K线 DataFrame
+        """
+        if not self.pro:
+            return pd.DataFrame()
+        
+        ts_code = self._format_code(ts_code)
+        
+        try:
+            # 计算日期范围
+            end_date = datetime.now().strftime('%Y%m%d')
+            if period == 'daily':
+                start_date = (datetime.now() - timedelta(days=count * 2)).strftime('%Y%m%d')
+            elif period == 'weekly':
+                start_date = (datetime.now() - timedelta(weeks=count * 2)).strftime('%Y%m%d')
+            else:  # monthly
+                start_date = (datetime.now() - timedelta(days=count * 60)).strftime('%Y%m%d')
+            
+            df = self.pro.daily(ts_code=ts_code, start_date=start_date, end_date=end_date)
+            
+            if df.empty:
+                return pd.DataFrame()
+            
+            # 只返回最近的 count 条
+            return df.head(count)
+        except Exception as e:
+            logger.error(f"获取K线数据失败: {e}")
             return pd.DataFrame()
 
 
@@ -217,6 +325,8 @@ def get_tushare_client() -> TushareClient:
     global _tushare_client
     if _tushare_client is None:
         import os
+        from dotenv import load_dotenv
+        load_dotenv()
         token = os.getenv('TUSHARE_TOKEN', '')
         if not token:
             raise ValueError("未配置 TUSHARE_TOKEN 环境变量")
