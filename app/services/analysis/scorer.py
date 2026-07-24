@@ -1,7 +1,7 @@
 """
 综合评分引擎
 
-0-100 综合评分：基本面（50%）+ 估值（30%）+ 成长（20%）
+0-100 综合评分：基本面（35%）+ 估值（20%）+ 成长（15%）+ 技术面（15%）+ 资金面（10%）+ 行业面（5%）
 """
 import logging
 from typing import Dict, Any
@@ -10,6 +10,9 @@ from datetime import datetime
 from app.services.analysis.fundamental import FundamentalAnalyzer
 from app.services.analysis.valuation import ValuationAnalyzer
 from app.services.analysis.dupont import DupontAnalyzer
+from app.services.analysis.technical import TechnicalAnalyzer
+from app.services.analysis.capital import capital_analyzer
+from app.services.analysis.industry import industry_analyzer
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +24,9 @@ class StockScorer:
         self.fundamental_analyzer = FundamentalAnalyzer()
         self.valuation_analyzer = ValuationAnalyzer()
         self.dupont_analyzer = DupontAnalyzer()
+        self.technical_analyzer = TechnicalAnalyzer()
+        self.capital_analyzer = capital_analyzer
+        self.industry_analyzer = industry_analyzer
     
     def score(self, code: str) -> Dict[str, Any]:
         """
@@ -37,17 +43,26 @@ class StockScorer:
             fundamental = self.fundamental_analyzer.analyze(code)
             valuation = self.valuation_analyzer.analyze(code)
             dupont = self.dupont_analyzer.analyze(code)
+            technical = self.technical_analyzer.analyze(code)
+            capital = self.capital_analyzer.analyze(code)
+            industry = self.industry_analyzer.analyze(code)
             
             # 计算各维度评分
             fundamental_score = self._score_fundamental(fundamental)
             valuation_score = self._score_valuation(valuation)
             growth_score = self._score_growth(fundamental)
+            technical_score = self._score_technical(technical)
+            capital_score = self._score_capital(capital)
+            industry_score = self._score_industry(industry)
             
-            # 加权综合评分
+            # 加权综合评分（六维度）
             total_score = (
-                fundamental_score * 0.5 +
-                valuation_score * 0.3 +
-                growth_score * 0.2
+                fundamental_score * 0.35 +
+                valuation_score * 0.20 +
+                growth_score * 0.15 +
+                technical_score * 0.15 +
+                capital_score * 0.10 +
+                industry_score * 0.05
             )
             
             # 评级映射
@@ -60,17 +75,26 @@ class StockScorer:
                 'breakdown': {
                     'fundamental_score': round(fundamental_score, 2),
                     'valuation_score': round(valuation_score, 2),
-                    'growth_score': round(growth_score, 2)
+                    'growth_score': round(growth_score, 2),
+                    'technical_score': round(technical_score, 2),
+                    'capital_score': round(capital_score, 2),
+                    'industry_score': round(industry_score, 2)
                 },
                 'weights': {
-                    'fundamental': 0.5,
-                    'valuation': 0.3,
-                    'growth': 0.2
+                    'fundamental': 0.35,
+                    'valuation': 0.20,
+                    'growth': 0.15,
+                    'technical': 0.15,
+                    'capital': 0.10,
+                    'industry': 0.05
                 },
                 'details': {
                     'fundamental': fundamental,
                     'valuation': valuation,
-                    'dupont': dupont
+                    'dupont': dupont,
+                    'technical': technical,
+                    'capital': capital,
+                    'industry': industry
                 },
                 'analysis_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             }
@@ -367,6 +391,33 @@ class StockScorer:
         if weight_sum > 0:
             return min(score, 100)
         return 50
+    
+    def _score_technical(self, technical: Dict[str, Any]) -> float:
+        """技术面评分（0-100）"""
+        if not technical or technical.get('error'):
+            return 50
+        
+        # 从技术面分析结果中提取分数
+        score_data = technical.get('score', {})
+        return score_data.get('total', 50)
+    
+    def _score_capital(self, capital: Dict[str, Any]) -> float:
+        """资金面评分（0-100）"""
+        if not capital or capital.get('error'):
+            return 50
+        
+        # 从资金面分析结果中提取分数
+        score_data = capital.get('capital_score', {})
+        return score_data.get('total', 50)
+    
+    def _score_industry(self, industry: Dict[str, Any]) -> float:
+        """行业面评分（0-100）"""
+        if not industry or industry.get('error'):
+            return 50
+        
+        # 从行业面分析结果中提取分数
+        score_data = industry.get('industry_score', {})
+        return score_data.get('total', 50)
     
     def _get_rating(self, score: float) -> str:
         """评级映射"""

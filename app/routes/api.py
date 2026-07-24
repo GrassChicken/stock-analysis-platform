@@ -7,6 +7,8 @@ from app.services.analysis.valuation import ValuationAnalyzer
 from app.services.analysis.dupont import DupontAnalyzer
 from app.services.analysis.scorer import StockScorer
 from app.services.analysis.technical import TechnicalAnalyzer
+from app.services.analysis.capital import capital_analyzer
+from app.services.analysis.industry import industry_analyzer
 
 api_bp = Blueprint("api", __name__)
 
@@ -124,6 +126,26 @@ def get_technical(code: str):
     try:
         analyzer = TechnicalAnalyzer()
         result = analyzer.analyze(code)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@api_bp.route("/stock/<code>/capital")
+def get_capital(code: str):
+    """资金面分析"""
+    try:
+        result = capital_analyzer.analyze(code)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@api_bp.route("/stock/<code>/industry")
+def get_industry(code: str):
+    """行业面分析"""
+    try:
+        result = industry_analyzer.analyze(code)
         return jsonify(result)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
