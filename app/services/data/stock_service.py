@@ -241,6 +241,12 @@ class StockService:
             if df.empty:
                 return []
             
+            # 根据周期进行数据聚合
+            if period == 'weekly':
+                df = self._aggregate_weekly(df)
+            elif period == 'monthly':
+                df = self._aggregate_monthly(df)
+            
             # 只返回最近的 count 条
             df = df.head(count)
             
@@ -253,9 +259,9 @@ class StockService:
                     'high': float(row['high']),
                     'low': float(row['low']),
                     'close': float(row['close']),
-                    'pre_close': float(row['pre_close']),
-                    'change': float(row['change']),
-                    'pct_chg': float(row['pct_chg']),
+                    'pre_close': float(row.get('pre_close', 0)),
+                    'change': float(row.get('change', 0)),
+                    'pct_chg': float(row.get('pct_chg', 0)),
                     'vol': float(row['vol']),
                     'amount': float(row['amount']),
                 })
@@ -270,6 +276,98 @@ class StockService:
         except Exception as e:
             logger.error(f"获取 K 线失败 {ts_code}: {e}")
             return []
+
+    def _aggregate_weekly(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        将日K数据聚合为周K
+        
+        规则：
+        - 按交易周分组
+        - open: 周初开盘价
+        - high: 周最高价
+        - low: 周最低价
+        - close: 周末收盘价
+        - vol/amount: 累加
+        - trade_date: 周末日期
+        """
+        if df.empty:
+            return df
+        
+        # 确保 trade_date 是日期类型并排序（降序，最新在前）
+        df = df.copy()
+        df['trade_date'] = pd.to_datetime(df['trade_date'])
+        df = df.sort_values('trade_date', ascending=False).reset_index(drop=True)
+        
+        # 按周分组（使用 ISO 周）
+        df['week'] = df['trade_date'].dt.isocalendar().week.astype(int)
+        df['year'] = df['trade_date'].dt.year
+        
+        result = []
+        for (year, week), group in df.groupby(['year', 'week']):
+            group = group.sort_values('trade_date', ascending=False)
+            aggregated = {
+                'ts_code': group.iloc[0]['ts_code'],
+                'trade_date': group.iloc[0]['trade_date'],  # 周末日期
+                'open': group.iloc[-1]['open'],  # 周初开盘（最早一天的开盘）
+                'high': group['high'].max(),
+                'low': group['low'].min(),
+                'close': group.iloc[0]['close'],  # 周末收盘（最新一天的收盘）
+                'vol': group['vol'].sum(),
+                'amount': group['amount'].sum(),
+            }
+            result.append(aggregated)
+        
+        result_df = pd.DataFrame(result)
+        # 按日期降序排列（最新在前），与日线数据保持一致
+        result_df = result_df.sort_values('trade_date', ascending=False).reset_index(drop=True)
+        result_df['trade_date'] = result_df['trade_date'].dt.strftime('%Y%m%d')
+        return result_df
+
+    def _aggregate_monthly(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        将日K数据聚合为月K
+        
+        规则：
+        - 按交易月分组
+        - open: 月初开盘价
+        - high: 月最高价
+        - low: 月最低价
+        - close: 月末收盘价
+        - vol/amount: 累加
+        - trade_date: 月末日期
+        """
+        if df.empty:
+            return df
+        
+        # 确保 trade_date 是日期类型并排序（降序，最新在前）
+        df = df.copy()
+        df['trade_date'] = pd.to_datetime(df['trade_date'])
+        df = df.sort_values('trade_date', ascending=False).reset_index(drop=True)
+        
+        # 按月分组
+        df['year'] = df['trade_date'].dt.year
+        df['month'] = df['trade_date'].dt.month
+        
+        result = []
+        for (year, month), group in df.groupby(['year', 'month']):
+            group = group.sort_values('trade_date', ascending=False)
+            aggregated = {
+                'ts_code': group.iloc[0]['ts_code'],
+                'trade_date': group.iloc[0]['trade_date'],  # 月末日期
+                'open': group.iloc[-1]['open'],  # 月初开盘（最早一天的开盘）
+                'high': group['high'].max(),
+                'low': group['low'].min(),
+                'close': group.iloc[0]['close'],  # 月末收盘（最新一天的收盘）
+                'vol': group['vol'].sum(),
+                'amount': group['amount'].sum(),
+            }
+            result.append(aggregated)
+        
+        result_df = pd.DataFrame(result)
+        # 按日期降序排列（最新在前），与日线数据保持一致
+        result_df = result_df.sort_values('trade_date', ascending=False).reset_index(drop=True)
+        result_df['trade_date'] = result_df['trade_date'].dt.strftime('%Y%m%d')
+        return result_df
 
     def get_daily_basic(self, code: str) -> Dict[str, Any]:
         """
