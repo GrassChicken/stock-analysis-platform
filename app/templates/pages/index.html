@@ -4,8 +4,8 @@
 <div class="space-y-6">
 
     <!-- 搜索区域 -->
-    <div class="bg-white rounded-xl shadow-sm p-6 card-hover">
-        <h2 class="text-lg font-bold gradient-text mb-4">🔍 搜索股票</h2>
+    <div class="bg-white rounded-xl shadow-sm p-4 sm:p-6 card-hover">
+        <h2 class="text-base sm:text-lg font-bold gradient-text mb-3 sm:mb-4">🔍 搜索股票</h2>
         <div class="relative">
             <input
                 type="text"
@@ -53,8 +53,8 @@
     </div>
 
     <!-- 自选股列表 -->
-    <div class="bg-white rounded-xl shadow-sm p-6 card-hover">
-        <h2 class="text-lg font-bold gradient-text mb-4">⭐ 我的自选</h2>
+    <div class="bg-white rounded-xl shadow-sm p-4 sm:p-6 card-hover">
+        <h2 class="text-base sm:text-lg font-bold gradient-text mb-3 sm:mb-4">⭐ 我的自选</h2>
         <div id="watchlist-container"
              hx-get="/api/watchlist"
              hx-trigger="load"

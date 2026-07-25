@@ -1,13 +1,13 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="space-y-6">
+<div class="space-y-4 sm:space-y-6">
     <div class="flex items-center justify-between">
-        <h1 class="text-2xl font-bold gradient-text">⭐ 我的自选股</h1>
-        <a href="/" class="text-sm text-primary-600 hover:text-primary-800 transition-colors">← 返回首页</a>
+        <h1 class="text-lg sm:text-2xl font-bold gradient-text">⭐ 我的自选股</h1>
+        <a href="/" class="text-xs sm:text-sm text-primary-600 hover:text-primary-800 transition-colors">← 返回首页</a>
     </div>
 
-    <div class="bg-white rounded-xl shadow-sm p-6 card-hover">
+    <div class="bg-white rounded-xl shadow-sm p-3 sm:p-6 card-hover">
         <div hx-get="/api/watchlist"
              hx-trigger="load"
              hx-swap="innerHTML"
