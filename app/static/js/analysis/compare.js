@@ -30,14 +30,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 300);
     });
 
-    // 点击外部关闭搜索结果
     document.addEventListener('click', (e) => {
         if (!e.target.closest('#search-results') && !e.target.closest('#search-input')) {
             resultsBox.classList.add('hidden');
         }
     });
 
-    // 对比按钮
     document.getElementById('compare-btn').addEventListener('click', startCompare);
 });
 
@@ -92,7 +90,6 @@ function addStock(code, name) {
     selectedCodes.push(code);
     updateSelectedUI();
     
-    // 关闭搜索结果
     document.getElementById('search-results').classList.add('hidden');
     document.getElementById('search-input').value = '';
 }
@@ -114,7 +111,6 @@ function updateSelectedUI() {
         btn.disabled = true;
         btn.textContent = '开始对比分析';
     } else {
-        // 从 API 获取股票名称可能较慢，先用代码显示
         container.innerHTML = selectedCodes.map(code => `
             <span class="inline-flex items-center px-3 py-1.5 bg-primary-50 text-primary-700 rounded-full text-sm font-medium">
                 <span id="tag-${code}">${code}</span>
@@ -139,41 +135,54 @@ function updateSelectedUI() {
 // ==================== 对比分析 ====================
 
 async function startCompare() {
-    if (selectedCodes.length < 2) return;
+    if (selectedCodes.length < 2) {
+        alert('请至少选择 2 只股票');
+        return;
+    }
 
     const btn = document.getElementById('compare-btn');
     btn.disabled = true;
     btn.textContent = '分析中，请稍候...';
 
     try {
+        // 对比分析耗时较长（每只股票需要调用多个API），设置3分钟超时
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 180000);
+        
         const res = await fetch('/api/compare', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ codes: selectedCodes })
+            body: JSON.stringify({ codes: selectedCodes }),
+            signal: controller.signal
         });
+        
+        clearTimeout(timeoutId);
+        
         const data = await res.json();
 
         if (data.error) {
-            alert('对比失败: ' + data.error);
+            alert('对比失败：' + data.error);
             btn.disabled = false;
-            btn.textContent = '开始对比分析';
+            btn.textContent = `开始对比分析 (${selectedCodes.length} 只)`;
             return;
         }
 
-        // 更新股票名称标签
         updateStockNames(data.stocks || []);
-        
-        // 渲染对比结果
         renderCompareResults(data);
         
-        // 显示结果区域
         document.getElementById('compare-results').classList.remove('hidden');
-        
-        // 滚动到结果区域
-        document.getElementById('compare-results').scrollIntoView({ behavior: 'smooth' });
+        setTimeout(() => {
+            document.getElementById('compare-results').scrollIntoView({ behavior: 'smooth' });
+        }, 100);
     } catch (err) {
         console.error('对比失败:', err);
-        alert('网络错误，请重试');
+        let msg = '网络错误，请重试';
+        if (err.name === 'AbortError') {
+            msg = '分析超时，请减少股票数量或稍后重试';
+        } else if (err.message) {
+            msg = err.message;
+        }
+        alert(msg);
     } finally {
         btn.disabled = false;
         btn.textContent = `开始对比分析 (${selectedCodes.length} 只)`;
@@ -195,16 +204,9 @@ function renderCompareResults(data) {
     const stocks = data.stocks || [];
     const best = data.best || {};
 
-    // AI 总结
     document.getElementById('ai-summary').textContent = data.summary || '暂无分析总结';
-
-    // 综合评分对比表
     renderScoreTable(stocks, best);
-
-    // 关键指标对比表
     renderMetricsTable(stocks, best);
-
-    // 雷达图
     renderRadarChart(stocks);
 }
 
@@ -212,7 +214,6 @@ function renderScoreTable(stocks, best) {
     const thead = document.querySelector('#score-table').parentElement.querySelector('thead tr');
     const tbody = document.getElementById('score-table');
 
-    // 构建表头
     let headerHtml = '<th class="text-left py-3 px-2 font-semibold text-gray-600">指标</th>';
     stocks.forEach((s, i) => {
         const colors = ['text-blue-600', 'text-green-600', 'text-purple-600', 'text-orange-600'];
@@ -220,7 +221,6 @@ function renderScoreTable(stocks, best) {
     });
     thead.innerHTML = headerHtml;
 
-    // 维度名称映射
     const dimNames = {
         total_score: '综合评分',
         fundamental_score: '基本面',
@@ -231,14 +231,12 @@ function renderScoreTable(stocks, best) {
         growth_score: '成长性'
     };
 
-    // 构建数据行
     let rows = '';
     const dimensions = ['total_score', 'fundamental_score', 'technical_score', 'valuation_score', 'capital_score', 'industry_score', 'growth_score'];
     
     dimensions.forEach(dim => {
         let row = `<tr class="border-b border-gray-50 hover:bg-gray-50"><td class="py-2.5 px-2 text-gray-600 font-medium">${dimNames[dim] || dim}</td>`;
         
-        // 找最大值用于高亮
         const values = stocks.map(s => {
             if (dim === 'total_score') return s.total_score || 0;
             return (s.breakdown && s.breakdown[dim]) || 0;
@@ -263,7 +261,6 @@ function renderMetricsTable(stocks, best) {
     const thead = document.querySelector('#metrics-table').parentElement.querySelector('thead tr');
     const tbody = document.getElementById('metrics-table');
 
-    // 构建表头
     let headerHtml = '<th class="text-left py-3 px-2 font-semibold text-gray-600">指标</th>';
     stocks.forEach((s, i) => {
         const colors = ['text-blue-600', 'text-green-600', 'text-purple-600', 'text-orange-600'];
@@ -275,27 +272,26 @@ function renderMetricsTable(stocks, best) {
         if (v == null || v === 0) return '--';
         return typeof v === 'number' ? v.toFixed(2) + unit : v;
     };
-    const fmtYi = (v) => {
+    const fmtMv = (v) => {
         if (!v || v === 0) return '--';
         return v.toFixed(2) + '亿';
     };
 
-    // 指标行定义
     const metrics = [
-        { label: '股价', key: 'price', format: v => fmt(v, '元'), path: 'price' },
-        { label: '涨跌幅', key: 'change_pct', format: v => fmt(v, '%'), path: 'change_pct', colored: true },
-        { label: 'ROE', key: 'roe', format: v => fmt(v, '%'), path: 'fundamental.roe' },
-        { label: '净利率', key: 'net_margin', format: v => fmt(v, '%'), path: 'fundamental.net_margin' },
-        { label: '毛利率', key: 'gross_margin', format: v => fmt(v, '%'), path: 'fundamental.gross_margin' },
-        { label: '营收同比', key: 'revenue_yoy', format: v => fmt(v, '%'), path: 'fundamental.revenue_yoy', colored: true },
-        { label: '利润同比', key: 'profit_yoy', format: v => fmt(v, '%'), path: 'fundamental.profit_yoy', colored: true },
-        { label: '资产负债率', key: 'debt_ratio', format: v => fmt(v, '%'), path: 'fundamental.debt_ratio' },
-        { label: 'PE (TTM)', key: 'pe_ttm', format: v => fmt(v), path: 'valuation.pe_ttm' },
-        { label: 'PB', key: 'pb', format: v => fmt(v), path: 'valuation.pb' },
-        { label: 'PS', key: 'ps', format: v => fmt(v), path: 'valuation.ps' },
-        { label: 'PE 分位', key: 'pe_pct', format: v => fmt(v, '%'), path: 'valuation.pe_percentile' },
-        { label: 'PB 分位', key: 'pb_pct', format: v => fmt(v, '%'), path: 'valuation.pb_percentile' },
-        { label: '总市值', key: 'total_mv', format: fmtWan, path: 'valuation.total_mv' },
+        { label: '股价', format: v => fmt(v, '元'), path: 'price' },
+        { label: '涨跌幅', format: v => fmt(v, '%'), path: 'change_pct', colored: true },
+        { label: 'ROE', format: v => fmt(v, '%'), path: 'fundamental.roe' },
+        { label: '净利率', format: v => fmt(v, '%'), path: 'fundamental.net_margin' },
+        { label: '毛利率', format: v => fmt(v, '%'), path: 'fundamental.gross_margin' },
+        { label: '营收同比', format: v => fmt(v, '%'), path: 'fundamental.revenue_yoy', colored: true },
+        { label: '利润同比', format: v => fmt(v, '%'), path: 'fundamental.profit_yoy', colored: true },
+        { label: '资产负债率', format: v => fmt(v, '%'), path: 'fundamental.debt_ratio' },
+        { label: 'PE (TTM)', format: v => fmt(v), path: 'valuation.pe_ttm' },
+        { label: 'PB', format: v => fmt(v), path: 'valuation.pb' },
+        { label: 'PS', format: v => fmt(v), path: 'valuation.ps' },
+        { label: 'PE 分位', format: v => fmt(v, '%'), path: 'valuation.pe_percentile' },
+        { label: 'PB 分位', format: v => fmt(v, '%'), path: 'valuation.pb_percentile' },
+        { label: '总市值', format: fmtMv, path: 'valuation.total_mv' },
     ];
 
     let rows = '';
@@ -303,7 +299,6 @@ function renderMetricsTable(stocks, best) {
         let row = `<tr class="border-b border-gray-50 hover:bg-gray-50"><td class="py-2.5 px-2 text-gray-600 font-medium">${m.label}</td>`;
 
         stocks.forEach(s => {
-            // 通过路径获取值
             const val = m.path.split('.').reduce((obj, key) => obj && obj[key], s);
             let text = m.format(val);
             let cls = 'text-gray-700';
@@ -347,9 +342,7 @@ function renderRadarChart(stocks) {
     }));
 
     radarChart.setOption({
-        tooltip: {
-            trigger: 'item'
-        },
+        tooltip: { trigger: 'item' },
         legend: {
             data: stocks.map(s => s.name || s.code),
             bottom: 0,
@@ -359,27 +352,15 @@ function renderRadarChart(stocks) {
             center: ['50%', '45%'],
             radius: '65%',
             indicator: dims.map(d => ({ name: d.name, max: 100 })),
-            axisName: {
-                color: '#666',
-                fontSize: 13,
-                fontWeight: 500
-            },
+            axisName: { color: '#666', fontSize: 13, fontWeight: 500 },
             splitArea: {
-                areaStyle: {
-                    color: ['rgba(59, 130, 246, 0.03)', 'rgba(59, 130, 246, 0.06)']
-                }
+                areaStyle: { color: ['rgba(59, 130, 246, 0.03)', 'rgba(59, 130, 246, 0.06)'] }
             },
             axisLine: { lineStyle: { color: 'rgba(0,0,0,0.08)' } },
             splitLine: { lineStyle: { color: 'rgba(0,0,0,0.08)' } }
         },
-        series: [{
-            type: 'radar',
-            data: seriesData
-        }]
+        series: [{ type: 'radar', data: seriesData }]
     });
 
-    // 响应式
-    window.addEventListener('resize', () => {
-        if (radarChart) radarChart.resize();
-    });
+    window.addEventListener('resize', () => { if (radarChart) radarChart.resize(); });
 }
