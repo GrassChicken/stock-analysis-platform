@@ -433,7 +433,8 @@ class StockReportPDF:
         self._subsection('主力资金流向')
         main_net = money_flow.get('main_net_inflow')
         if main_net is not None:
-            self._data_row('主力净流入', f'{int(main_net):,} 万', self._color_for_value(main_net), True)
+            main_net_wan = main_net / 10000
+            self._data_row('主力净流入', f'{main_net_wan:,.2f} 万', self._color_for_value(main_net), True)
         
         main_pct = money_flow.get('main_net_inflow_pct')
         if main_pct is not None:
@@ -452,10 +453,12 @@ class StockReportPDF:
         self._subsection('融资融券')
         margin_balance = margin.get('margin_balance')
         if margin_balance:
-            self._data_row('融资余额', f'{int(margin_balance):,} 万', COLOR['text'], True)
+            margin_balance_wan = margin_balance / 10000
+            self._data_row('融资余额', f'{margin_balance_wan:,.2f} 万', COLOR['text'], True)
         net_margin = margin.get('net_margin')
         if net_margin is not None:
-            self._data_row('融资净买入', f'{int(net_margin):,} 万', self._color_for_value(net_margin), True)
+            net_margin_wan = net_margin / 10000
+            self._data_row('融资净买入', f'{net_margin_wan:,.2f} 万', self._color_for_value(net_margin), True)
         
         self._subsection('筹码分布')
         concentration = chip_dist.get('concentration')
