@@ -86,8 +86,8 @@ class CapitalAnalyzer:
     def _parse_tushare_money_flow(self, flow_data: dict, code: str) -> Dict[str, Any]:
         """解析 Tushare 资金流向数据
         
-        注意: Tushare moneyflow 接口金额字段单位为【千元】
-        需要乘以 1000 转为【元】，前端再除以 10000 显示为【万】
+        注意: Tushare moneyflow 接口金额字段单位为【万元】
+        需要乘以 10000 转为【元】，前端再除以 10000 显示为【万】
         """
         main_net = flow_data.get('main_net_inflow', 0)
         trend = '流入' if main_net > 0 else '流出' if main_net < 0 else '平衡'
@@ -101,8 +101,8 @@ class CapitalAnalyzer:
         else:
             date_str = datetime.now().strftime('%Y-%m-%d')
         
-        # ★ 千元 → 元（Tushare 金额单位是千元，前端 fmtWan 会再除以 10000 显示为万）
-        _K = 1000
+        # ★ 万元 → 元（Tushare 金额单位是万元，前端 fmtWan 会再除以 10000 显示为万）
+        _K = 10000
         return {
             'available': True,
             'date': date_str,

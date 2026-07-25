@@ -63,6 +63,9 @@ function renderCapital(data) {
                     <div class="flex justify-between items-center"><span class="text-gray-500">小单</span><span class="font-semibold tabular-nums ${flowColor(moneyFlow.small_net)}">${fmtWan(moneyFlow.small_net)}</span></div>
                 </div>
             </div>
+            <div class="mt-3 pt-2 border-t text-[10px] text-gray-400 leading-relaxed">
+                <span class="font-medium text-gray-500">📋 统计规则(Tushare):</span> 小单&lt;5万 | 中单5~20万 | 大单20~100万 | 特大单≥100万 | 主力=大单+特大单
+            </div>
         </div>
         ` : `
         <div class="bg-gray-50 rounded-lg p-4">
