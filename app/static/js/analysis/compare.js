@@ -43,9 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function fetchSearch(keyword) {
     try {
-        const res = await fetch(`/api/search?q=${encodeURIComponent(keyword)}`, {
-            headers: { 'HX-Request': 'true' }
-        });
+        const res = await fetch(`/api/search?q=${encodeURIComponent(keyword)}`);
         const data = await res.json();
         renderSearchResults(data.results || []);
     } catch (err) {
