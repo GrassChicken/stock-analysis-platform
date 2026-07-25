@@ -173,7 +173,9 @@ class ValuationAnalyzer:
                 'ps': self._safe_round(latest.get('ps')),
                 'ps_ttm': self._safe_round(latest.get('ps_ttm')),
                 'dv_ratio': self._safe_round(latest.get('dv_ratio')),  # 股息率
-                'total_mv': self._safe_round(latest.get('total_mv') / 10000) if latest.get('total_mv') else None  # 亿元
+                'total_mv': self._safe_round(latest.get('total_mv') / 10000) if latest.get('total_mv') else None,  # 亿元
+                'circ_mv': self._safe_round(latest.get('circ_mv') / 10000) if latest.get('circ_mv') else None,  # 亿元
+                'turnover_rate': self._safe_round(latest.get('turnover_rate')),  # 换手率
             }
         except Exception as e:
             logger.error(f"获取当前估值指标失败: {e}")
