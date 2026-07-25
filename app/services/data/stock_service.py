@@ -84,7 +84,7 @@ class StockService:
 
     def search_stock(self, keyword: str) -> List[Dict[str, Any]]:
         """
-        搜索股票（支持代码/名称/拼音首字母）
+        搜索股票（支持代码/名称/拼音首字母/完整拼音）
         
         Args:
             keyword: 搜索关键词
@@ -113,6 +113,12 @@ class StockService:
             # 拼音首字母匹配
             pinyin_initials = ''.join([p[0] for p in lazy_pinyin(stock['name'])]).upper()
             if keyword in pinyin_initials:
+                results.append(stock)
+                continue
+            
+            # 完整拼音匹配（支持输入"pingan"匹配"平安银行"）
+            pinyin_full = ''.join(lazy_pinyin(stock['name'])).upper()
+            if keyword in pinyin_full:
                 results.append(stock)
                 continue
             
