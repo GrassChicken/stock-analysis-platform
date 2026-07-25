@@ -20,12 +20,30 @@ api_bp = Blueprint("api", __name__)
 def search():
     """搜索股票"""
     keyword = request.args.get('q', '').strip()
+    
+    # 调试：打印接收到的参数
+    logger.info(f"搜索请求 - 原始关键词: {repr(keyword)}, 编码: {keyword.encode('utf-8')}")
+    
     if not keyword:
         results = []
     else:
         try:
+            # 尝试处理可能的编码问题
+            try:
+                # 如果是乱码（如 'å¹³å®'），尝试修复
+                if keyword.isascii() and len(keyword) > 2:
+                    # 可能被错误解码了，尝试重新编码
+                    fixed = keyword.encode('latin-1').decode('utf-8')
+                    if fixed != keyword:
+                        logger.info(f"搜索请求 - 修复编码: {repr(keyword)} -> {repr(fixed)}")
+                        keyword = fixed
+            except:
+                pass
+            
             results = stock_service.search_stock(keyword)[:20]
+            logger.info(f"搜索请求 - 返回结果数: {len(results)}")
         except Exception as e:
+            logger.error(f"搜索异常: {e}")
             if request.headers.get('HX-Request'):
                 return f'<div class="text-center py-4 text-red-500">搜索失败: {str(e)}</div>'
             return jsonify({"results": [], "error": str(e)})

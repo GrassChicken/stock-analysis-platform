@@ -1,14 +1,14 @@
 {% if items %}
 <div class="space-y-3">
     {% for item in items %}
-    <div class="watchlist-item flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-white hover:from-blue-50 hover:to-blue-100 rounded-xl transition-all duration-300 border border-transparent hover:border-blue-200"
+    <div class="watchlist-item flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 bg-gradient-to-r from-gray-50 to-white hover:from-blue-50 hover:to-blue-100 rounded-xl transition-all duration-300 border border-transparent hover:border-blue-200"
          data-code="{{ item.code }}">
         <!-- 左侧：股票信息 -->
-        <a href="/stock/{{ item.code }}" class="flex-1 flex items-center space-x-4 min-w-0">
+        <a href="/stock/{{ item.code }}" class="flex-1 flex items-center space-x-4 min-w-0 mb-2 sm:mb-0">
             <div class="flex-1 min-w-0">
                 <div class="flex items-center space-x-2">
-                    <span class="font-semibold text-gray-900 truncate">{{ item.name }}</span>
-                    <span class="text-sm text-gray-500">{{ item.code }}</span>
+                    <span class="font-semibold text-gray-900 truncate block">{{ item.name }}</span>
+                    <span class="text-sm text-gray-500 flex-shrink-0">{{ item.code }}</span>
                 </div>
                 <div class="text-xs text-gray-400 mt-1">
                     {{ item.group }} · {{ item.created_at }}
@@ -17,13 +17,13 @@
         </a>
         
         <!-- 中间：价格 -->
-        <div class="flex items-center space-x-6 mr-4">
+        <div class="flex items-center justify-between sm:justify-end sm:space-x-6 sm:mr-4">
             <div class="text-right">
                 <div class="text-lg font-bold tabular-nums {% if item.change_pct > 0 %}text-red-500{% elif item.change_pct < 0 %}text-green-500{% else %}text-gray-700{% endif %}">
                     {{ '%.2f' % item.price if item.price else '--' }}
                 </div>
             </div>
-            <div class="text-right min-w-[80px]">
+            <div class="text-right sm:min-w-[80px]">
                 <div class="text-sm tabular-nums {% if item.change_pct > 0 %}text-red-500{% elif item.change_pct < 0 %}text-green-500{% else %}text-gray-700{% endif %}">
                     {% if item.change_pct > 0 %}+{% endif %}{{ '%.2f' % item.change_pct if item.change_pct else '0.00' }}%
                 </div>
@@ -35,7 +35,7 @@
         
         <!-- 右侧：删除按钮 -->
         <button onclick="removeFromWatchlist('{{ item.code }}', this)"
-                class="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                class="mt-2 sm:mt-0 p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                 title="移除自选股">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
