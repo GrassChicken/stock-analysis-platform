@@ -14,8 +14,8 @@
                 placeholder="输入股票代码、名称或拼音首字母..."
                 class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none text-sm"
                 hx-get="/api/search"
-                hx-include="[name='q']"
-                hx-trigger="keyup changed delay:300ms, search"
+                hx-vals="js:{q: document.getElementById('search-input').value}"
+                hx-trigger="keyup changed delay:300ms"
                 hx-target="#search-results"
                 hx-swap="innerHTML"
             >
