@@ -71,8 +71,8 @@ class CompareService:
                     'ps': current_val.get('ps', 0),
                     'total_mv': current_val.get('total_mv', 0),
                     'circ_mv': current_val.get('circ_mv', 0),
-                    'pe_percentile': valuation.get('pe_percentile', {}).get('percentile', 0),
-                    'pb_percentile': valuation.get('pb_percentile', {}).get('percentile', 0),
+                    'pe_percentile': valuation.get('historical_percentile', {}).get('pe_percentile', 0),
+                    'pb_percentile': valuation.get('historical_percentile', {}).get('pb_percentile', 0),
                 }
                 
                 # 基本面数据
