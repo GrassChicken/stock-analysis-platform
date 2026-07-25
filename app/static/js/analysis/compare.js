@@ -275,9 +275,9 @@ function renderMetricsTable(stocks, best) {
         if (v == null || v === 0) return '--';
         return typeof v === 'number' ? v.toFixed(2) + unit : v;
     };
-    const fmtWan = (v) => {
-        if (!v) return '--';
-        return (v / 10000).toFixed(0) + '亿';
+    const fmtYi = (v) => {
+        if (!v || v === 0) return '--';
+        return v.toFixed(2) + '亿';
     };
 
     // 指标行定义
