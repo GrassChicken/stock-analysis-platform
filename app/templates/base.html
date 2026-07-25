@@ -6,7 +6,7 @@
     <title>{% block title %}{{ title | default('智能股票深度分析') }}{% endblock %}</title>
 
     <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.tailwindcss.com/3.4.17"></script>
     <script>
         tailwind.config = {
             theme: {
@@ -141,6 +141,7 @@
 
     <!-- 全局 JS -->
     <script src="/static/js/app.js"></script>
+    <script src="/static/js/watchlist.js" defer></script>
     {% block extra_js %}{% endblock %}
 </body>
 </html>

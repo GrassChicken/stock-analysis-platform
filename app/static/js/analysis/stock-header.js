@@ -33,4 +33,9 @@ async function loadStockHeader() {
     } catch (err) {
         console.error('[stock-header] 加载股票基本信息失败:', err);
     }
+
+    // 更新自选股按钮状态
+    if (typeof updateWatchlistButtons === 'function') {
+        updateWatchlistButtons();
+    }
 }

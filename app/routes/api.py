@@ -1,6 +1,6 @@
 """API 路由 - JSON 数据接口 (供前端/HTMX调用)"""
+import logging
 from flask import Blueprint, jsonify, request, render_template
-from app.services.data.stock_search import StockSearchService
 from app.services.data.stock_service import stock_service
 from app.services.analysis.fundamental import FundamentalAnalyzer
 from app.services.analysis.valuation import ValuationAnalyzer
@@ -10,6 +10,7 @@ from app.services.analysis.technical import TechnicalAnalyzer
 from app.services.analysis.capital import capital_analyzer
 from app.services.analysis.industry import industry_analyzer
 
+logger = logging.getLogger(__name__)
 api_bp = Blueprint("api", __name__)
 
 
@@ -23,8 +24,7 @@ def search():
         results = []
     else:
         try:
-            search_service = StockSearchService()
-            results = search_service.search(keyword, limit=20)
+            results = stock_service.search_stock(keyword)[:20]
         except Exception as e:
             if request.headers.get('HX-Request'):
                 return f'<div class="text-center py-4 text-red-500">搜索失败: {str(e)}</div>'
@@ -198,9 +198,108 @@ def get_ai_analysis(code: str):
 
 # ==================== 自选股 ====================
 
-@api_bp.route("/watchlist")
+@api_bp.route("/watchlist", methods=['GET'])
 def get_watchlist():
-    """自选股列表（暂用空列表）"""
-    if request.headers.get('HX-Request'):
-        return '<p class="text-sm text-gray-400 text-center py-4">暂无自选股，搜索添加</p>'
-    return jsonify({"watchlist": []})
+    """获取自选股列表（带实时行情）"""
+    from app.models.database import Watchlist
+    from app.extensions import db
+    
+    try:
+        # 查询自选股列表
+        items = Watchlist.query.order_by(Watchlist.created_at.desc()).all()
+        
+        if not items:
+            if request.headers.get('HX-Request'):
+                return '<div class="text-center py-8"><p class="text-sm text-gray-400">暂无自选股</p><p class="text-xs text-gray-300 mt-1">搜索股票后点击 ⭐ 添加</p></div>'
+            return jsonify({"watchlist": []})
+        
+        # 获取实时行情
+        watchlist_data = []
+        for item in items:
+            try:
+                quote = stock_service.get_quote(item.code)
+                watchlist_data.append({
+                    'code': item.code,
+                    'name': item.name or quote.get('name', ''),
+                    'price': quote.get('price', 0),
+                    'change': quote.get('change', 0),
+                    'change_pct': quote.get('change_pct', 0),
+                    'group': item.group_name,
+                    'created_at': item.created_at.strftime('%Y-%m-%d %H:%M') if item.created_at else ''
+                })
+            except Exception as e:
+                logger.warning(f"获取自选股 {item.code} 行情失败: {e}")
+                watchlist_data.append({
+                    'code': item.code,
+                    'name': item.name or item.code,
+                    'price': 0,
+                    'change': 0,
+                    'change_pct': 0,
+                    'group': item.group_name,
+                    'created_at': item.created_at.strftime('%Y-%m-%d %H:%M') if item.created_at else ''
+                })
+        
+        if request.headers.get('HX-Request'):
+            return render_template('partials/watchlist_items.html', items=watchlist_data)
+        
+        return jsonify({"watchlist": watchlist_data})
+    except Exception as e:
+        logger.error(f"获取自选股列表失败: {e}")
+        if request.headers.get('HX-Request'):
+            return f'<p class="text-sm text-red-500 text-center py-4">加载失败: {str(e)}</p>'
+        return jsonify({"error": str(e)}), 500
+
+
+@api_bp.route("/watchlist", methods=['POST'])
+def add_watchlist():
+    """添加自选股"""
+    from app.models.database import Watchlist
+    from app.extensions import db
+    
+    try:
+        data = request.get_json() if request.is_json else request.form
+        code = data.get('code', '').strip()
+        name = data.get('name', '').strip()
+        group_name = data.get('group', '默认')
+        
+        if not code:
+            return jsonify({"error": "股票代码不能为空"}), 400
+        
+        # 检查是否已存在
+        existing = Watchlist.query.filter_by(code=code).first()
+        if existing:
+            return jsonify({"message": "已在自选股中", "code": code}), 200
+        
+        # 创建新记录
+        item = Watchlist(code=code, name=name, group_name=group_name)
+        db.session.add(item)
+        db.session.commit()
+        
+        logger.info(f"添加自选股: {code} {name}")
+        return jsonify({"message": "已添加自选股", "code": code, "name": name}), 201
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"添加自选股失败: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@api_bp.route("/watchlist/<code>", methods=['DELETE'])
+def remove_watchlist(code: str):
+    """删除自选股"""
+    from app.models.database import Watchlist
+    from app.extensions import db
+    
+    try:
+        item = Watchlist.query.filter_by(code=code).first()
+        if not item:
+            return jsonify({"error": "未找到该自选股"}), 404
+        
+        db.session.delete(item)
+        db.session.commit()
+        
+        logger.info(f"删除自选股: {code}")
+        return jsonify({"message": "已移除自选股", "code": code}), 200
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"删除自选股失败: {e}")
+        return jsonify({"error": str(e)}), 500

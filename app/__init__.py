@@ -24,6 +24,7 @@ def create_app(config_class=Config):
 
     # 创建数据库表
     with app.app_context():
+        from app.models.database import Watchlist, AnalysisReport
         db.create_all()
 
     # 健康检查路由

@@ -1,0 +1,57 @@
+{% if items %}
+<div class="space-y-3">
+    {% for item in items %}
+    <div class="watchlist-item flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-white hover:from-blue-50 hover:to-blue-100 rounded-xl transition-all duration-300 border border-transparent hover:border-blue-200"
+         data-code="{{ item.code }}">
+        <!-- 左侧：股票信息 -->
+        <a href="/stock/{{ item.code }}" class="flex-1 flex items-center space-x-4 min-w-0">
+            <div class="flex-1 min-w-0">
+                <div class="flex items-center space-x-2">
+                    <span class="font-semibold text-gray-900 truncate">{{ item.name }}</span>
+                    <span class="text-sm text-gray-500">{{ item.code }}</span>
+                </div>
+                <div class="text-xs text-gray-400 mt-1">
+                    {{ item.group }} · {{ item.created_at }}
+                </div>
+            </div>
+        </a>
+        
+        <!-- 中间：价格 -->
+        <div class="flex items-center space-x-6 mr-4">
+            <div class="text-right">
+                <div class="text-lg font-bold tabular-nums {% if item.change_pct > 0 %}text-red-500{% elif item.change_pct < 0 %}text-green-500{% else %}text-gray-700{% endif %}">
+                    {{ '%.2f' % item.price if item.price else '--' }}
+                </div>
+            </div>
+            <div class="text-right min-w-[80px]">
+                <div class="text-sm tabular-nums {% if item.change_pct > 0 %}text-red-500{% elif item.change_pct < 0 %}text-green-500{% else %}text-gray-700{% endif %}">
+                    {% if item.change_pct > 0 %}+{% endif %}{{ '%.2f' % item.change_pct if item.change_pct else '0.00' }}%
+                </div>
+                <div class="text-xs tabular-nums {% if item.change > 0 %}text-red-500{% elif item.change < 0 %}text-green-500{% else %}text-gray-500{% endif %}">
+                    {% if item.change > 0 %}+{% endif %}{{ '%.2f' % item.change if item.change else '0.00' }}
+                </div>
+            </div>
+        </div>
+        
+        <!-- 右侧：删除按钮 -->
+        <button onclick="removeFromWatchlist('{{ item.code }}', this)"
+                class="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                title="移除自选股">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+        </button>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="text-center py-8">
+    <div class="inline-block p-4 bg-gray-100 rounded-full mb-4">
+        <svg class="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/>
+        </svg>
+    </div>
+    <p class="text-gray-500 mb-2">暂无自选股</p>
+    <p class="text-xs text-gray-400">搜索股票后点击 ⭐ 添加</p>
+</div>
+{% endif %}
