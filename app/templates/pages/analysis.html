@@ -16,6 +16,23 @@
         {% include "partials/analysis/kline_chart.html" %}
     </div>
 
+    <!-- PDF 导出按钮 -->
+    <div class="bg-white rounded-xl shadow-sm p-4 sm:p-6 card-hover">
+        <div class="flex items-center justify-between">
+            <div>
+                <h3 class="text-base sm:text-lg font-semibold text-gray-800">📄 导出 PDF 报告</h3>
+                <p class="text-xs sm:text-sm text-gray-500 mt-1">下载包含基本面、估值、技术面分析的完整报告</p>
+            </div>
+            <button onclick="generatePDFReport()" id="pdf-download-btn" class="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg text-sm sm:text-base font-medium hover:from-blue-700 hover:to-indigo-700 transition-all shadow-md hover:shadow-lg flex items-center space-x-2">
+                <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                </svg>
+                <span>下载 PDF</span>
+            </button>
+        </div>
+        <div id="pdf-status" class="hidden mt-3 text-sm text-gray-600"></div>
+    </div>
+
     <!-- 分析维度 Tab -->
     {% include "partials/analysis/tabs_section.html" %}
 
@@ -47,6 +64,9 @@
 
 <!-- Tab 调度器 -->
 <script src="/static/js/analysis/analysis-tabs.js"></script>
+
+<!-- PDF 报告模块 -->
+<script src="/static/js/analysis/pdf-report.js"></script>
 
 <!-- 入口脚本 -->
 <script src="/static/js/analysis/analysis-entry.js"></script>

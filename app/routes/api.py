@@ -341,3 +341,52 @@ def compare_stocks():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
+
+# ==================== PDF 报告 ====================
+
+@api_bp.route('/stock/<code>/report', methods=['GET'])
+def generate_report(code: str):
+    """生成 PDF 分析报告"""
+    try:
+        import os
+        from app.services.analysis.pdf_report import pdf_generator
+        from app.services.analysis.scorer import StockScorer
+        from app.services.data.stock_service import stock_service
+        
+        # 获取所有分析数据
+        scorer = StockScorer()
+        score_data = scorer.score(code)
+        
+        # 获取股票名称
+        quote = stock_service.get_quote(code)
+        
+        # 构建完整数据
+        report_data = {
+            'code': code,
+            'name': quote.get('name', code),
+            'score': score_data,
+            'fundamental': score_data.get('details', {}).get('fundamental', {}),
+            'valuation': score_data.get('details', {}).get('valuation', {}),
+            'technical': score_data.get('details', {}).get('technical', {}),
+        }
+        
+        filepath = pdf_generator.generate(report_data)
+        return jsonify({'success': True, 'filepath': filepath, 'filename': os.path.basename(filepath)})
+    except Exception as e:
+        logger.error(f"PDF 报告生成失败: {code}, {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+# ==================== PDF 下载 ====================
+
+@api_bp.route('/reports/<filename>', methods=['GET'])
+def download_report(filename: str):
+    """下载 PDF 报告"""
+    try:
+        from flask import send_from_directory
+        reports_dir = '/root/.openclaw/workspace-fafaxia/projects/stock-analysis-platform/reports'
+        return send_from_directory(reports_dir, filename, as_attachment=True)
+    except Exception as e:
+        logger.error(f"PDF 下载失败: {filename}, {e}")
+        return jsonify({'error': str(e)}), 500
