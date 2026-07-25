@@ -39,7 +39,8 @@ async function generatePDFReport() {
         
         if (data.success && data.filepath) {
             // 下载文件
-            const downloadRes = await fetch(`/api/${data.filepath.split('/').pop()}`);
+            const filename = data.filepath.split('/').pop();
+            const downloadRes = await fetch(`/api/reports/${filename}`);
             
             if (!downloadRes.ok) {
                 throw new Error('下载失败');

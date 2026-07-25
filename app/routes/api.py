@@ -362,13 +362,17 @@ def generate_report(code: str):
         quote = stock_service.get_quote(code)
         
         # 构建完整数据
+        details = score_data.get('details', {})
         report_data = {
             'code': code,
             'name': quote.get('name', code),
             'score': score_data,
-            'fundamental': score_data.get('details', {}).get('fundamental', {}),
-            'valuation': score_data.get('details', {}).get('valuation', {}),
-            'technical': score_data.get('details', {}).get('technical', {}),
+            'fundamental': details.get('fundamental', {}),
+            'valuation': details.get('valuation', {}),
+            'technical': details.get('technical', {}),
+            'dupont': details.get('dupont', {}),
+            'capital': details.get('capital', {}),
+            'industry': details.get('industry', {}),
         }
         
         filepath = pdf_generator.generate(report_data)
