@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 
+{% block title %}股票对比 PK - 智能股票深度分析{% endblock %}
+
 {% block content %}
 <div class="space-y-6">
     <div class="flex items-center justify-between">
@@ -7,16 +9,84 @@
         <a href="/" class="text-sm text-primary-600 hover:text-primary-800 transition-colors">← 返回首页</a>
     </div>
 
-    <div class="bg-white rounded-xl shadow-sm p-6 card-hover">
-        <div class="text-center py-12">
-            <div class="inline-block p-4 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full mb-4">
-                <svg class="w-12 h-12 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-                </svg>
+    <!-- 添加股票区域 -->
+    <div class="bg-white rounded-xl shadow-sm p-4 sm:p-6 card-hover">
+        <h2 class="text-lg font-semibold text-gray-800 mb-4">添加对比股票 <span class="text-sm text-gray-500 font-normal">（2-4只）</span></h2>
+        
+        <!-- 搜索框 -->
+        <div class="relative mb-4">
+            <input type="text" id="search-input" 
+                   placeholder="输入股票代码或名称搜索..." 
+                   class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none text-sm">
+            <svg class="absolute right-3 top-3.5 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+            </svg>
+        </div>
+
+        <!-- 搜索结果 -->
+        <div id="search-results" class="hidden mb-4"></div>
+
+        <!-- 已选股票标签 -->
+        <div id="selected-stocks" class="flex flex-wrap gap-2 min-h-[40px]">
+            <span class="text-sm text-gray-400">暂未选择股票</span>
+        </div>
+
+        <!-- 开始对比按钮 -->
+        <button id="compare-btn" disabled
+                class="mt-4 w-full py-3 bg-gradient-to-r from-primary-500 to-primary-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed">
+            开始对比分析
+        </button>
+    </div>
+
+    <!-- 对比结果区域 -->
+    <div id="compare-results" class="hidden space-y-6">
+        <!-- AI 总结 -->
+        <div class="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl shadow-sm p-4 sm:p-6 border border-blue-100">
+            <h2 class="text-lg font-semibold text-gray-800 mb-3 flex items-center">
+                <span class="text-2xl mr-2">🤖</span>AI 分析总结
+            </h2>
+            <div id="ai-summary" class="text-sm text-gray-700 leading-relaxed"></div>
+        </div>
+
+        <!-- 综合评分对比 -->
+        <div class="bg-white rounded-xl shadow-sm p-4 sm:p-6 card-hover">
+            <h2 class="text-lg font-semibold text-gray-800 mb-4">📊 综合评分对比</h2>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="border-b border-gray-200">
+                            <th class="text-left py-3 px-2 font-semibold text-gray-600">指标</th>
+                        </tr>
+                    </thead>
+                    <tbody id="score-table"></tbody>
+                </table>
             </div>
-            <p class="text-gray-500 mb-2">对比功能开发中</p>
-            <p class="text-sm text-gray-400">支持多只股票的基本面、技术面、估值面全方位对比</p>
+        </div>
+
+        <!-- 雷达图对比 -->
+        <div class="bg-white rounded-xl shadow-sm p-4 sm:p-6 card-hover">
+            <h2 class="text-lg font-semibold text-gray-800 mb-4">🎯 六维度能力对比</h2>
+            <div id="radar-chart" class="w-full" style="height: 400px;"></div>
+        </div>
+
+        <!-- 关键指标对比 -->
+        <div class="bg-white rounded-xl shadow-sm p-4 sm:p-6 card-hover">
+            <h2 class="text-lg font-semibold text-gray-800 mb-4">📈 关键指标对比</h2>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="border-b border-gray-200">
+                            <th class="text-left py-3 px-2 font-semibold text-gray-600">指标</th>
+                        </tr>
+                    </thead>
+                    <tbody id="metrics-table"></tbody>
+                </table>
+            </div>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/js/analysis/compare.js"></script>
 {% endblock %}

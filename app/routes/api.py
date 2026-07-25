@@ -321,3 +321,23 @@ def remove_watchlist(code: str):
         db.session.rollback()
         logger.error(f"删除自选股失败: {e}")
         return jsonify({"error": str(e)}), 500
+
+
+# ==================== 对比 PK ====================
+
+@api_bp.route("/compare", methods=['POST'])
+def compare_stocks():
+    """股票对比 PK"""
+    try:
+        from app.services.analysis.compare import compare_service
+        data = request.get_json()
+        codes = data.get('codes', [])
+
+        if not codes or len(codes) < 2:
+            return jsonify({"error": "至少选择 2 只股票"}), 400
+
+        result = compare_service.compare(codes)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
