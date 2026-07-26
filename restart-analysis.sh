@@ -79,8 +79,19 @@ fi
 
 # 步骤 3: 通过进程名查找并终止
 echo ""
-echo "🔍 步骤 3: 检查 Flask 进程..."
+echo "🔍 步骤 3: 检查 Gunicorn/Flask 进程..."
+GUNICORN_PIDS=$(ps aux | grep "[g]unicorn.*stock-analysis-platform" | awk '{print $2}' || true)
 FLASK_PIDS=$(ps aux | grep "[f]lask run" | grep "port 5005" | awk '{print $2}' || true)
+
+if [ -n "$GUNICORN_PIDS" ]; then
+    echo "📋 找到 Gunicorn 进程: $GUNICORN_PIDS"
+    echo "⚡ 强制终止..."
+    for pid in $GUNICORN_PIDS; do
+        kill -9 $pid 2>/dev/null || true
+    done
+    sleep 2
+fi
+
 if [ -n "$FLASK_PIDS" ]; then
     echo "📋 找到 Flask 进程: $FLASK_PIDS"
     echo "⚡ 强制终止..."
@@ -147,8 +158,14 @@ echo "🚀 启动新服务..."
 # 激活虚拟环境并启动
 source "$WORK_DIR/venv/bin/activate"
 
-# 启动 Flask 服务
-nohup flask run --host 0.0.0.0 --port $PORT > $WORK_DIR/service.log 2>&1 &
+# 启动 Gunicorn 服务（生产环境）
+if [ -f "$WORK_DIR/deploy/gunicorn.conf.py" ]; then
+    info "使用 Gunicorn 启动（生产环境）..."
+    nohup gunicorn -c deploy/gunicorn.conf.py "app:create_app()" > $WORK_DIR/service.log 2>&1 &
+else
+    warn "Gunicorn 配置不存在，使用 Flask 开发服务器..."
+    nohup flask run --host 0.0.0.0 --port $PORT > $WORK_DIR/service.log 2>&1 &
+fi
 NEW_PID=$!
 echo $NEW_PID > $WORK_DIR/.pid
 
@@ -239,5 +256,5 @@ echo ""
 echo "💡 提示:"
 echo "  - 查看实时日志: tail -f $WORK_DIR/service.log"
 echo "  - 查看历史日志: ls -lh $WORK_DIR/log/"
-echo "  - 停止服务:     pkill -f 'flask run.*port $PORT'"
+echo "  - 停止服务:     pkill -f 'gunicorn.*stock-analysis-platform'"
 echo ""
