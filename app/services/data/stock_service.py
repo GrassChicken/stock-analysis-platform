@@ -23,6 +23,8 @@ class StockService:
     def __init__(self):
         self._stock_list_cache = None
         self._stock_list_time = 0
+        self._search_index = None  # 延迟构建的搜索索引
+        self._search_index_timestamp = 0  # 索引构建时间
 
     def _get_pro(self):
         """获取 Tushare pro 接口"""
@@ -77,10 +79,56 @@ class StockService:
                 })
             
             logger.info(f"✓ 获取 {len(result)} 只股票")
+            # 股票列表更新后，重建搜索索引
+            self._search_index = None
             return result
         except Exception as e:
             logger.error(f"获取股票列表失败: {e}")
             return []
+
+    def _build_search_index(self) -> List[Dict[str, Any]]:
+        """
+        预构建搜索索引，包含预计算的拼音数据
+        
+        Returns:
+            搜索索引列表，每项包含原始股票数据 + 预计算的拼音
+        """
+        stocks = self.get_all_stocks()
+        if not stocks:
+            return []
+        
+        logger.info(f"开始构建搜索索引，股票数: {len(stocks)}")
+        start_time = time.time()
+        
+        index = []
+        for stock in stocks:
+            name = stock.get('name', '')
+            # 预计算拼音（首字母和完整拼音）
+            if name:
+                try:
+                    pinyin_list = lazy_pinyin(name)
+                    pinyin_initials = ''.join([p[0] for p in pinyin_list]).upper()
+                    pinyin_full = ''.join(pinyin_list).upper()
+                except Exception:
+                    pinyin_initials = ''
+                    pinyin_full = ''
+            else:
+                pinyin_initials = ''
+                pinyin_full = ''
+            
+            index.append({
+                **stock,
+                '_name_upper': name.upper(),
+                '_pinyin_initials': pinyin_initials,
+                '_pinyin_full': pinyin_full
+            })
+        
+        elapsed = time.time() - start_time
+        logger.info(f"✓ 搜索索引构建完成，耗时: {elapsed:.2f}s")
+        
+        self._search_index = index
+        self._search_index_timestamp = time.time()
+        return index
 
     def search_stock(self, keyword: str) -> List[Dict[str, Any]]:
         """
@@ -96,30 +144,39 @@ class StockService:
         if not keyword:
             return []
 
-        stocks = self.get_all_stocks()
+        # 使用或构建搜索索引
+        if self._search_index is None:
+            self._build_search_index()
+        
+        if not self._search_index:
+            return []
+
         results = []
         
-        for stock in stocks:
+        for stock in self._search_index:
             # 代码匹配
             if keyword in stock['code'] or keyword in stock['ts_code']:
-                results.append(stock)
+                # 移除内部字段后返回
+                result = {k: v for k, v in stock.items() if not k.startswith('_')}
+                results.append(result)
                 continue
             
             # 名称匹配
-            if keyword in stock['name'].upper():
-                results.append(stock)
+            if keyword in stock['_name_upper']:
+                result = {k: v for k, v in stock.items() if not k.startswith('_')}
+                results.append(result)
                 continue
             
-            # 拼音首字母匹配
-            pinyin_initials = ''.join([p[0] for p in lazy_pinyin(stock['name'])]).upper()
-            if keyword in pinyin_initials:
-                results.append(stock)
+            # 拼音首字母匹配（使用预计算的值）
+            if stock['_pinyin_initials'] and keyword in stock['_pinyin_initials']:
+                result = {k: v for k, v in stock.items() if not k.startswith('_')}
+                results.append(result)
                 continue
             
-            # 完整拼音匹配（支持输入"pingan"匹配"平安银行"）
-            pinyin_full = ''.join(lazy_pinyin(stock['name'])).upper()
-            if keyword in pinyin_full:
-                results.append(stock)
+            # 完整拼音匹配（使用预计算的值）
+            if stock['_pinyin_full'] and keyword in stock['_pinyin_full']:
+                result = {k: v for k, v in stock.items() if not k.startswith('_')}
+                results.append(result)
                 continue
             
             # 限制结果数量
