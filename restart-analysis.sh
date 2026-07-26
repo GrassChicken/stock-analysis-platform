@@ -155,6 +155,14 @@ find $WORK_DIR/log -name "service.log.old.*" -type f -mtime +7 -delete 2>/dev/nu
 echo ""
 echo "🚀 启动新服务..."
 
+# 加载环境变量
+if [ -f "$WORK_DIR/.env" ]; then
+    set -a
+    source "$WORK_DIR/.env"
+    set +a
+    info "已加载环境变量"
+fi
+
 # 激活虚拟环境并启动
 source "$WORK_DIR/venv/bin/activate"
 

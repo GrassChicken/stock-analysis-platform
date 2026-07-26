@@ -94,12 +94,29 @@ def get_daily_basic(code: str):
 
 # ==================== 分析 ====================
 
+from app.extensions import cache as flask_cache
+
 @api_bp.route("/stock/<code>/score")
 def get_score(code: str):
-    """综合评分"""
+    """综合评分（缓存5分钟）"""
+    # 生成缓存键
+    cache_key = f"score:{code}"
+    
+    # 尝试从缓存获取
+    cached_result = flask_cache.get(cache_key)
+    if cached_result is not None:
+        logger.info(f"评分缓存命中: {code}")
+        return jsonify(cached_result)
+    
+    # 缓存未命中，执行计算
     try:
         scorer = StockScorer()
         result = scorer.score(code)
+        
+        # 存入缓存（5分钟 = 300秒）
+        flask_cache.set(cache_key, result, timeout=300)
+        logger.info(f"评分结果已缓存: {code}")
+        
         return jsonify(result)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
