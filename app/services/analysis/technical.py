@@ -44,23 +44,31 @@ class TechnicalAnalyzer:
         self.kline_data = kline
         self._prepare_arrays()
 
+        # 计算各技术指标并缓存到实例变量（避免重复计算）
+        self._ma_result = self._calc_ma()
+        self._macd_result = self._calc_macd()
+        self._kdj_result = self._calc_kdj()
+        self._rsi_result = self._calc_rsi()
+        self._boll_result = self._calc_boll()
+        self._volume_result = self._calc_volume()
+        self._patterns_result = self._detect_patterns()
+        self._support_resistance_result = self._calc_support_resistance()
+
         result = {
             "code": code,
             "analysis_time": self._now(),
             "kline_count": len(kline),
+            "ma": self._ma_result,
+            "macd": self._macd_result,
+            "kdj": self._kdj_result,
+            "rsi": self._rsi_result,
+            "boll": self._boll_result,
+            "volume": self._volume_result,
+            "patterns": self._patterns_result,
+            "support_resistance": self._support_resistance_result,
+            "signals": self._generate_signals(),
+            "score": self._calc_technical_score()
         }
-
-        # 计算各技术指标
-        result["ma"] = self._calc_ma()
-        result["macd"] = self._calc_macd()
-        result["kdj"] = self._calc_kdj()
-        result["rsi"] = self._calc_rsi()
-        result["boll"] = self._calc_boll()
-        result["volume"] = self._calc_volume()
-        result["patterns"] = self._detect_patterns()
-        result["support_resistance"] = self._calc_support_resistance()
-        result["signals"] = self._generate_signals()
-        result["score"] = self._calc_technical_score()
 
         return result
 
@@ -601,8 +609,8 @@ class TechnicalAnalyzer:
                 else:
                     resistances.append({"price": round(ma_val, 2), "type": f"MA{p}", "strength": "medium"})
 
-        # 2. 布林带支撑/阻力
-        boll = self._calc_boll()
+        # 2. 布林带支撑/阻力（使用缓存）
+        boll = self._boll_result
         if "upper" in boll:
             if boll["lower"] < current_price:
                 supports.append({"price": boll["lower"], "type": "BOLL下轨", "strength": "strong"})
@@ -664,7 +672,7 @@ class TechnicalAnalyzer:
         neutral_signals = []
 
         # 1. 均线信号
-        ma = self._calc_ma()
+        ma = self._ma_result
         if ma["arrangement"] == "bullish":
             bullish_signals.append("均线多头排列")
         elif ma["arrangement"] == "bearish":
@@ -677,7 +685,7 @@ class TechnicalAnalyzer:
                 bearish_signals.append(cross["desc"])
 
         # 2. MACD信号
-        macd = self._calc_macd()
+        macd = self._macd_result
         if macd["golden_cross"]:
             bullish_signals.append("MACD金叉")
         if macd["death_cross"]:
@@ -688,7 +696,7 @@ class TechnicalAnalyzer:
             bearish_signals.append("MACD顶背离")
 
         # 3. KDJ信号
-        kdj = self._calc_kdj()
+        kdj = self._kdj_result
         if kdj["golden_cross"] and kdj["zone"] != "overbought":
             bullish_signals.append("KDJ金叉")
         if kdj["death_cross"] and kdj["zone"] != "oversold":
@@ -699,28 +707,28 @@ class TechnicalAnalyzer:
             bearish_signals.append("KDJ超买区")
 
         # 4. RSI信号
-        rsi = self._calc_rsi()
+        rsi = self._rsi_result
         if rsi["zone"] == "oversold":
             bullish_signals.append("RSI超卖")
         if rsi["zone"] == "overbought":
             bearish_signals.append("RSI超买")
 
         # 5. 布林带信号
-        boll = self._calc_boll()
+        boll = self._boll_result
         if boll.get("position") == "below_lower":
             bullish_signals.append("价格触及布林下轨")
         if boll.get("position") == "above_upper":
             bearish_signals.append("价格触及布林上轨")
 
         # 6. 量价信号
-        vol = self._calc_volume()
+        vol = self._volume_result
         if vol.get("coordination") == "price_vol_up":
             bullish_signals.append("量价齐升")
         if vol.get("coordination") == "price_down_vol_up":
             bearish_signals.append("放量下跌")
 
         # 7. K线形态信号
-        patterns = self._detect_patterns()
+        patterns = self._patterns_result
         for p in patterns:
             if p["signal"] == "bullish":
                 bullish_signals.append(f"K线形态: {p['name']}")
@@ -763,7 +771,7 @@ class TechnicalAnalyzer:
         details = {}
 
         # 1. 均线排列 (20分)
-        ma = self._calc_ma()
+        ma = self._ma_result
         if ma["arrangement"] == "bullish":
             ma_score = 20
         elif ma["arrangement"] == "mixed" and ma["above_ma_count"] >= 3:
@@ -776,7 +784,7 @@ class TechnicalAnalyzer:
         details["ma_score"] = ma_score
 
         # 2. MACD (20分)
-        macd = self._calc_macd()
+        macd = self._macd_result
         macd_score = 10  # 基础分
         if macd["dif"] > 0:
             macd_score += 3
@@ -795,7 +803,7 @@ class TechnicalAnalyzer:
         details["macd_score"] = macd_score
 
         # 3. KDJ (15分)
-        kdj = self._calc_kdj()
+        kdj = self._kdj_result
         kdj_score = 7
         if kdj["golden_cross"]:
             kdj_score += 5
@@ -810,7 +818,7 @@ class TechnicalAnalyzer:
         details["kdj_score"] = kdj_score
 
         # 4. RSI (15分)
-        rsi = self._calc_rsi()
+        rsi = self._rsi_result
         rsi6 = rsi["values"].get("rsi6", 50)
         if 40 <= rsi6 <= 60:
             rsi_score = 10
@@ -826,7 +834,7 @@ class TechnicalAnalyzer:
         details["rsi_score"] = rsi_score
 
         # 5. 布林带位置 (10分)
-        boll = self._calc_boll()
+        boll = self._boll_result
         pb = boll.get("pb", 0.5)
         if 0.2 <= pb <= 0.5:
             boll_score = 8  # 中下轨区间，有上涨空间
@@ -840,7 +848,7 @@ class TechnicalAnalyzer:
         details["boll_score"] = boll_score
 
         # 6. 量价配合 (10分)
-        vol = self._calc_volume()
+        vol = self._volume_result
         if vol.get("coordination") == "price_vol_up":
             vol_score = 10
         elif vol.get("coordination") == "price_vol_down":
@@ -855,7 +863,7 @@ class TechnicalAnalyzer:
         details["volume_score"] = vol_score
 
         # 7. K线形态加减分 (10分)
-        patterns = self._detect_patterns()
+        patterns = self._patterns_result
         pattern_score = 5
         for p in patterns:
             if p["signal"] == "bullish":
