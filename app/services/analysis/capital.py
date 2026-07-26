@@ -15,12 +15,13 @@ logger = logging.getLogger(__name__)
 class CapitalAnalyzer:
     """资金面分析器"""
 
-    def analyze(self, code: str) -> Dict[str, Any]:
+    def analyze(self, code: str, preloaded: Dict[str, Any] = None) -> Dict[str, Any]:
         """
         完整资金面分析
         
         Args:
             code: 股票代码
+            preloaded: 预加载数据字典（未使用，保持接口兼容）
         
         Returns:
             资金面分析结果
@@ -28,6 +29,15 @@ class CapitalAnalyzer:
         code = code.strip()
         if '.' in code:
             code = code.split('.')[0]
+        
+        # 缓存 API 调用结果，避免重复请求
+        self._cache = {}
+        
+        # 预获取常用数据
+        self._cache['kline'] = self._get_kline(code)
+        self._cache['money_flow'] = self._get_money_flow(code)
+        self._cache['north_flow'] = self._get_north_flow(code)
+        self._cache['margin'] = self._get_margin(code)
         
         result = {
             'code': code,
@@ -39,49 +49,114 @@ class CapitalAnalyzer:
             'capital_score': self._calc_capital_score(code),
         }
         
+        # 清理缓存
+        self._cache = None
+        
         return result
-
-    def _analyze_money_flow(self, code: str) -> Dict[str, Any]:
-        """分析主力资金流向"""
+    
+    def _get_kline(self, code: str) -> List[Dict]:
+        """获取K线数据（带缓存）"""
+        if 'kline' in self._cache:
+            return self._cache['kline']
+        try:
+            from app.services.data.stock_service import stock_service
+            kline = stock_service.get_kline(code, period='daily', count=60)
+            return kline if kline else []
+        except Exception as e:
+            logger.warning(f"获取K线失败: {e}")
+            return []
+    
+    def _get_money_flow(self, code: str) -> Dict[str, Any]:
+        """获取资金流向（带缓存）"""
+        if 'money_flow' in self._cache:
+            return self._cache['money_flow']
         # 优先使用 Tushare
         try:
             from app.services.data.tushare_client import get_tushare_client
             tushare_client = get_tushare_client()
             flow_data = tushare_client.get_money_flow(code)
-            
             if flow_data and flow_data.get('main_net_inflow') is not None:
-                return self._parse_tushare_money_flow(flow_data, code)
+                self._cache['money_flow'] = flow_data
+                self._cache['money_flow_source'] = 'tushare'
+                return flow_data
         except Exception as e:
-            logger.warning(f"Tushare 获取资金流向失败，尝试 AKShare: {e}")
-        
+            logger.warning(f"Tushare 获取资金流向失败: {e}")
         # Fallback 到 AKShare
         flow_data = akshare_client.get_money_flow(code)
+        self._cache['money_flow'] = flow_data
+        self._cache['money_flow_source'] = 'akshare'
+        return flow_data
+    
+    def _get_north_flow(self, code: str) -> Dict[str, Any]:
+        """获取北向资金（带缓存）"""
+        if 'north_flow' in self._cache:
+            return self._cache['north_flow']
+        try:
+            client = get_tushare_client()
+            if not client.pro:
+                self._cache['north_flow'] = {'available': False}
+                return self._cache['north_flow']
+            ts_code = f"{code}.SH" if code.startswith('6') else f"{code}.SZ"
+            df = client.pro.hk_hold(ts_code=ts_code, start_date='', end_date='')
+            if df is None or df.empty:
+                self._cache['north_flow'] = {'available': False}
+                return self._cache['north_flow']
+            latest = df.iloc[0]
+            result = {
+                'available': True,
+                'date': str(latest.get('trade_date', '')),
+                'hold_ratio': float(latest.get('ratio', 0)) if latest.get('ratio') else 0,
+                'hold_count': float(latest.get('count', 0)) if latest.get('count') else 0,
+                'market': latest.get('market', ''),
+            }
+            self._cache['north_flow'] = result
+            return result
+        except Exception as e:
+            logger.warning(f"获取北向资金持股失败: {e}")
+            self._cache['north_flow'] = {'available': False}
+            return self._cache['north_flow']
+    
+    def _get_margin(self, code: str) -> Dict[str, Any]:
+        """获取融资融券（带缓存）"""
+        if 'margin' in self._cache:
+            return self._cache['margin']
+        margin_data = akshare_client.get_margin_detail(code)
+        self._cache['margin'] = margin_data
+        return margin_data
+
+    def _analyze_money_flow(self, code: str) -> Dict[str, Any]:
+        """分析主力资金流向"""
+        flow_data = self._cache.get('money_flow', {})
         
         if not flow_data:
             return {'available': False}
         
-        # 判断主力动向
-        main_net = flow_data.get('main_net_inflow', 0)
-        trend = '流入' if main_net > 0 else '流出' if main_net < 0 else '平衡'
+        source = self._cache.get('money_flow_source', 'akshare')
         
-        # 计算主力净流入占比
-        main_pct = flow_data.get('main_net_inflow_pct', 0)
-        strength = '强' if abs(main_pct) > 5 else '中' if abs(main_pct) > 2 else '弱'
-        
-        return {
-            'available': True,
-            'date': flow_data.get('date'),
-            'close': flow_data.get('close'),
-            'change_pct': flow_data.get('change_pct'),
-            'main_net_inflow': main_net,
-            'main_net_inflow_pct': main_pct,
-            'super_large_net': flow_data.get('super_large_net', 0),
-            'large_net': flow_data.get('large_net', 0),
-            'medium_net': flow_data.get('medium_net', 0),
-            'small_net': flow_data.get('small_net', 0),
-            'trend': trend,
-            'strength': strength,
-        }
+        if source == 'tushare':
+            return self._parse_tushare_money_flow(flow_data, code)
+        else:
+            # AKShare 数据
+            main_net = flow_data.get('main_net_inflow', 0)
+            trend = '流入' if main_net > 0 else '流出' if main_net < 0 else '平衡'
+            main_pct = flow_data.get('main_net_inflow_pct', 0)
+            strength = '强' if abs(main_pct) > 5 else '中' if abs(main_pct) > 2 else '弱'
+            
+            return {
+                'available': True,
+                'date': flow_data.get('date'),
+                'source': 'akshare',
+                'close': flow_data.get('close'),
+                'change_pct': flow_data.get('change_pct'),
+                'main_net_inflow': main_net,
+                'main_net_inflow_pct': main_pct,
+                'super_large_net': flow_data.get('super_large_net', 0),
+                'large_net': flow_data.get('large_net', 0),
+                'medium_net': flow_data.get('medium_net', 0),
+                'small_net': flow_data.get('small_net', 0),
+                'trend': trend,
+                'strength': strength,
+            }
     
     def _parse_tushare_money_flow(self, flow_data: dict, code: str) -> Dict[str, Any]:
         """解析 Tushare 资金流向数据
@@ -119,41 +194,11 @@ class CapitalAnalyzer:
 
     def _analyze_north_flow(self, code: str) -> Dict[str, Any]:
         """分析北向资金持股"""
-        # 获取个股北向资金持股
-        try:
-            client = get_tushare_client()
-            if not client.pro:
-                return {'available': False}
-            
-            # 格式化代码
-            ts_code = f"{code}.SH" if code.startswith('6') else f"{code}.SZ"
-            
-            # 获取沪深港通持股数据
-            df = client.pro.hk_hold(ts_code=ts_code, start_date='', end_date='')
-            
-            if df is None or df.empty:
-                return {'available': False}
-            
-            # 取最新数据
-            latest = df.iloc[0]
-            
-            # 计算持股变化
-            hold_ratio = latest.get('ratio', 0)
-            
-            return {
-                'available': True,
-                'date': str(latest.get('trade_date', '')),
-                'hold_ratio': float(hold_ratio) if hold_ratio else 0,
-                'hold_count': float(latest.get('count', 0)) if latest.get('count') else 0,
-                'market': latest.get('market', ''),
-            }
-        except Exception as e:
-            logger.warning(f"获取北向资金持股失败: {e}")
-            return {'available': False}
+        return self._cache.get('north_flow', {'available': False})
 
     def _analyze_margin(self, code: str) -> Dict[str, Any]:
         """分析融资融券"""
-        margin_data = akshare_client.get_margin_detail(code)
+        margin_data = self._cache.get('margin', {})
         
         if not margin_data:
             return {'available': False}
@@ -185,9 +230,8 @@ class CapitalAnalyzer:
         基于成交量和价格波动估算获利盘/套牢盘比例
         """
         try:
-            # 获取最近60天K线
-            from app.services.data.stock_service import stock_service
-            kline = stock_service.get_kline(code, period='daily', count=60)
+            # 使用缓存的K线数据
+            kline = self._cache.get('kline', [])
             
             if not kline or len(kline) < 20:
                 return {'available': False}
@@ -242,14 +286,13 @@ class CapitalAnalyzer:
         score = 0
         details = {}
         
-        # 1. 主力资金流向评分 (40分)
-        flow_data = akshare_client.get_money_flow(code)
+        # 1. 主力资金流向评分 (40分) — 使用缓存
+        flow_data = self._cache.get('money_flow', {})
         if flow_data and flow_data.get('main_net_inflow') is not None:
             main_net = flow_data.get('main_net_inflow', 0)
             main_pct = flow_data.get('main_net_inflow_pct', 0)
             
             if main_net > 0:
-                # 主力流入
                 if main_pct > 5:
                     flow_score = 40
                 elif main_pct > 2:
@@ -259,7 +302,6 @@ class CapitalAnalyzer:
                 else:
                     flow_score = 10
             else:
-                # 主力流出
                 if main_pct < -5:
                     flow_score = 0
                 elif main_pct < -2:
@@ -273,41 +315,31 @@ class CapitalAnalyzer:
             details['money_flow_desc'] = f"主力净{'流入' if main_net > 0 else '流出'}{abs(main_net)/10000:.2f}万"
             score += flow_score
         
-        # 2. 北向资金评分 (30分)
-        try:
-            client = get_tushare_client()
-            if client.pro:
-                ts_code = f"{code}.SH" if code.startswith('6') else f"{code}.SZ"
-                df = client.pro.hk_hold(ts_code=ts_code, start_date='', end_date='')
-                
-                if df is not None and not df.empty:
-                    hold_ratio = float(df.iloc[0].get('ratio', 0) or 0)
-                    
-                    # 北向资金持股比例评分
-                    if hold_ratio > 5:
-                        north_score = 30
-                    elif hold_ratio > 3:
-                        north_score = 25
-                    elif hold_ratio > 1:
-                        north_score = 20
-                    elif hold_ratio > 0:
-                        north_score = 10
-                    else:
-                        north_score = 0
-                    
-                    details['north_score'] = north_score
-                    details['north_desc'] = f"北向持股{hold_ratio:.2f}%"
-                    score += north_score
-        except Exception as e:
-            logger.warning(f"北向资金评分失败: {e}")
+        # 2. 北向资金评分 (30分) — 使用缓存
+        north_data = self._cache.get('north_flow', {})
+        if north_data and north_data.get('available'):
+            hold_ratio = north_data.get('hold_ratio', 0)
+            
+            if hold_ratio > 5:
+                north_score = 30
+            elif hold_ratio > 3:
+                north_score = 25
+            elif hold_ratio > 1:
+                north_score = 20
+            elif hold_ratio > 0:
+                north_score = 10
+            else:
+                north_score = 0
+            
+            details['north_score'] = north_score
+            details['north_desc'] = f"北向持股{hold_ratio:.2f}%"
+            score += north_score
         
-        # 3. 融资融券评分 (30分)
-        margin_data = akshare_client.get_margin_detail(code)
+        # 3. 融资融券评分 (30分) — 使用缓存
+        margin_data = self._cache.get('margin', {})
         if margin_data:
-            margin_balance = margin_data.get('融资余额', 0)
             net_margin = margin_data.get('融资买入额', 0) - margin_data.get('融资偿还额', 0)
             
-            # 融资余额增加看多
             if net_margin > 0:
                 margin_score = 25 if net_margin > 1000000 else 20 if net_margin > 0 else 15
             else:

@@ -72,12 +72,13 @@ class ValuationAnalyzer:
         
         return round(percentile, 2)
     
-    def analyze(self, code: str) -> Dict[str, Any]:
+    def analyze(self, code: str, preloaded: Dict[str, Any] = None) -> Dict[str, Any]:
         """
         估值分析
         
         Args:
             code: 股票代码
+            preloaded: 预加载数据字典（来自 DataCollector），含 daily_basic_df/fina_df/daily_df/income_df/balance_df
         
         Returns:
             估值分析结果字典
@@ -86,25 +87,33 @@ class ValuationAnalyzer:
         logger.info(f"开始估值分析: {ts_code}")
         
         try:
-            # 获取每日指标（PE/PB/PS）
-            time.sleep(0.3)
-            daily_basic_df = self.pro.daily_basic(ts_code=ts_code)
-            
-            # 获取财务指标（用于 PEG 和 DCF）
-            time.sleep(0.3)
-            fina_df = self.pro.fina_indicator(ts_code=ts_code)
-            
-            # 获取日线行情（当前价格）
-            time.sleep(0.3)
-            daily_df = self.pro.daily(ts_code=ts_code, start_date=(datetime.now() - timedelta(days=30)).strftime('%Y%m%d'))
-            
-            # 获取利润表（用于 DCF）
-            time.sleep(0.3)
-            income_df = self.pro.income(ts_code=ts_code)
-            
-            # 获取资产负债表
-            time.sleep(0.3)
-            balance_df = self.pro.balancesheet(ts_code=ts_code)
+            # 使用预加载数据或自行获取
+            if preloaded:
+                daily_basic_df = preloaded.get('daily_basic_df', pd.DataFrame())
+                fina_df = preloaded.get('fina_df', pd.DataFrame())
+                daily_df = preloaded.get('daily_df', pd.DataFrame())
+                income_df = preloaded.get('income_df', pd.DataFrame())
+                balance_df = preloaded.get('balance_df', pd.DataFrame())
+            else:
+                # 获取每日指标（PE/PB/PS）
+                time.sleep(0.3)
+                daily_basic_df = self.pro.daily_basic(ts_code=ts_code)
+                
+                # 获取财务指标（用于 PEG 和 DCF）
+                time.sleep(0.3)
+                fina_df = self.pro.fina_indicator(ts_code=ts_code)
+                
+                # 获取日线行情（当前价格）
+                time.sleep(0.3)
+                daily_df = self.pro.daily(ts_code=ts_code, start_date=(datetime.now() - timedelta(days=30)).strftime('%Y%m%d'))
+                
+                # 获取利润表（用于 DCF）
+                time.sleep(0.3)
+                income_df = self.pro.income(ts_code=ts_code)
+                
+                # 获取资产负债表
+                time.sleep(0.3)
+                balance_df = self.pro.balancesheet(ts_code=ts_code)
             
             # 当前估值指标
             current_valuation = self._get_current_valuation(daily_basic_df, daily_df)

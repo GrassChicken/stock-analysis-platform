@@ -44,12 +44,13 @@ class DupontAnalyzer:
         except:
             return None
     
-    def analyze(self, code: str) -> Dict[str, Any]:
+    def analyze(self, code: str, preloaded: Dict[str, Any] = None) -> Dict[str, Any]:
         """
         杜邦分析
         
         Args:
             code: 股票代码
+            preloaded: 预加载数据字典（来自 DataCollector），含 fina_df
         
         Returns:
             杜邦分析结果字典
@@ -58,9 +59,13 @@ class DupontAnalyzer:
         logger.info(f"开始杜邦分析: {ts_code}")
         
         try:
-            # 获取财务指标
-            time.sleep(0.3)
-            fina_df = self.pro.fina_indicator(ts_code=ts_code)
+            # 使用预加载数据或自行获取
+            if preloaded:
+                fina_df = preloaded.get('fina_df', pd.DataFrame())
+            else:
+                # 获取财务指标
+                time.sleep(0.3)
+                fina_df = self.pro.fina_indicator(ts_code=ts_code)
             
             if fina_df.empty:
                 return {'code': ts_code, 'error': '无法获取财务数据'}

@@ -2,7 +2,7 @@
 
 实现常用技术指标计算、形态识别、支撑阻力位、买卖信号生成
 """
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any
 import numpy as np
 
 
@@ -17,23 +17,29 @@ class TechnicalAnalyzer:
         self.opens: np.ndarray = np.array([])
         self.volumes: np.ndarray = np.array([])
 
-    def analyze(self, code: str, count: int = 120) -> Dict:
+    def analyze(self, code: str, count: int = 120, preloaded: Dict[str, Any] = None) -> Dict:
         """
         对指定股票进行完整技术面分析
 
         Args:
             code: 股票代码
             count: 获取K线数量（默认120根日K）
+            preloaded: 预加载数据字典（来自 DataCollector），含 kline
 
         Returns:
             包含所有技术指标、形态、信号的分析结果
         """
-        from app.services.data.stock_service import stock_service
-
-        # 获取K线数据
-        kline = stock_service.get_kline(code, period='daily', count=count)
-        if not kline or len(kline) < 30:
-            return {"error": f"数据不足，无法进行技术分析（需要至少30根K线）", "code": code}
+        # 使用预加载数据或自行获取
+        if preloaded and preloaded.get('kline'):
+            kline = preloaded['kline']
+            if len(kline) < 30:
+                return {"error": f"数据不足，无法进行技术分析（需要至少30根K线）", "code": code}
+        else:
+            from app.services.data.stock_service import stock_service
+            # 获取K线数据
+            kline = stock_service.get_kline(code, period='daily', count=count)
+            if not kline or len(kline) < 30:
+                return {"error": f"数据不足，无法进行技术分析（需要至少30根K线）", "code": code}
 
         self.kline_data = kline
         self._prepare_arrays()

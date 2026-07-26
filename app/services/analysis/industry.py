@@ -51,12 +51,13 @@ SW_INDUSTRY_MAP = {
 class IndustryAnalyzer:
     """行业面分析器"""
 
-    def analyze(self, code: str) -> Dict[str, Any]:
+    def analyze(self, code: str, preloaded: Dict[str, Any] = None) -> Dict[str, Any]:
         """
         完整行业面分析
         
         Args:
             code: 股票代码
+            preloaded: 预加载数据字典（未使用，保持接口兼容）
         
         Returns:
             行业面分析结果
@@ -65,8 +66,10 @@ class IndustryAnalyzer:
         if '.' in code:
             code = code.split('.')[0]
         
-        # 获取股票基本信息
+        # 缓存股票信息，避免重复查询
         stock_info = self._get_stock_info(code)
+        self._stock_info_cache = stock_info
+        self._daily_basic_cache = {}
         
         result = {
             'code': code,
@@ -77,6 +80,10 @@ class IndustryAnalyzer:
             'concept_tags': self._get_concept_tags(code),
             'industry_score': self._calc_industry_score(code, stock_info),
         }
+        
+        # 清理缓存
+        self._stock_info_cache = None
+        self._daily_basic_cache = None
         
         return result
 
@@ -110,6 +117,15 @@ class IndustryAnalyzer:
             'market_position': '龙头' if stock_info.get('market') in ['主板', '创业板'] else '中小盘',
         }
 
+    def _get_cached_daily_basic(self, ts_code: str) -> Dict[str, Any]:
+        """获取 daily_basic 并缓存，避免重复调用"""
+        if ts_code in self._daily_basic_cache:
+            return self._daily_basic_cache[ts_code]
+        
+        daily_basic = stock_service.get_daily_basic(ts_code)
+        self._daily_basic_cache[ts_code] = daily_basic
+        return daily_basic
+
     def _analyze_peer_comparison(self, code: str, stock_info: Dict[str, Any]) -> Dict[str, Any]:
         """
         行业内对比分析
@@ -136,7 +152,7 @@ class IndustryAnalyzer:
                     if not ts_code:
                         continue
                     
-                    daily_basic = stock_service.get_daily_basic(ts_code)
+                    daily_basic = self._get_cached_daily_basic(ts_code)
                     if daily_basic:
                         peer_data.append({
                             'code': stock.get('code'),
@@ -276,9 +292,10 @@ class IndustryAnalyzer:
         score += heat_score
         
         # 2. 行业地位评分 (30分)
-        # 基于市值排名
+        # 基于市值排名（使用缓存）
         try:
-            daily_basic = stock_service.get_daily_basic(code)
+            ts_code = stock_info.get('ts_code', '')
+            daily_basic = self._get_cached_daily_basic(ts_code) if ts_code else {}
             total_mv = daily_basic.get('total_mv', 0) if daily_basic else 0
             
             # 获取同行业股票
@@ -290,7 +307,8 @@ class IndustryAnalyzer:
                 mv_rank = 1
                 for peer in peer_stocks[:20]:
                     try:
-                        peer_basic = stock_service.get_daily_basic(peer.get('ts_code', ''))
+                        peer_ts_code = peer.get('ts_code', '')
+                        peer_basic = self._get_cached_daily_basic(peer_ts_code) if peer_ts_code else {}
                         if peer_basic and peer_basic.get('total_mv', 0) > total_mv:
                             mv_rank += 1
                     except:

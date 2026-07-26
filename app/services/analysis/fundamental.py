@@ -44,12 +44,13 @@ class FundamentalAnalyzer:
         except:
             return None
     
-    def analyze(self, code: str) -> Dict[str, Any]:
+    def analyze(self, code: str, preloaded: Dict[str, Any] = None) -> Dict[str, Any]:
         """
         五维度基本面分析
         
         Args:
             code: 股票代码（如 000001.SZ 或 000001）
+            preloaded: 预加载数据字典（来自 DataCollector），含 fina_df/income_df/balance_df/cashflow_df
         
         Returns:
             分析结果字典
@@ -58,21 +59,28 @@ class FundamentalAnalyzer:
         logger.info(f"开始基本面分析: {ts_code}")
         
         try:
-            # 获取财务指标数据
-            time.sleep(0.3)
-            fina_df = self.pro.fina_indicator(ts_code=ts_code)
-            
-            # 获取利润表
-            time.sleep(0.3)
-            income_df = self.pro.income(ts_code=ts_code)
-            
-            # 获取资产负债表
-            time.sleep(0.3)
-            balance_df = self.pro.balancesheet(ts_code=ts_code)
-            
-            # 获取现金流量表
-            time.sleep(0.3)
-            cashflow_df = self.pro.cashflow(ts_code=ts_code)
+            # 使用预加载数据或自行获取
+            if preloaded:
+                fina_df = preloaded.get('fina_df', pd.DataFrame())
+                income_df = preloaded.get('income_df', pd.DataFrame())
+                balance_df = preloaded.get('balance_df', pd.DataFrame())
+                cashflow_df = preloaded.get('cashflow_df', pd.DataFrame())
+            else:
+                # 获取财务指标数据
+                time.sleep(0.3)
+                fina_df = self.pro.fina_indicator(ts_code=ts_code)
+                
+                # 获取利润表
+                time.sleep(0.3)
+                income_df = self.pro.income(ts_code=ts_code)
+                
+                # 获取资产负债表
+                time.sleep(0.3)
+                balance_df = self.pro.balancesheet(ts_code=ts_code)
+                
+                # 获取现金流量表
+                time.sleep(0.3)
+                cashflow_df = self.pro.cashflow(ts_code=ts_code)
             
             # 五维度分析
             result = {
