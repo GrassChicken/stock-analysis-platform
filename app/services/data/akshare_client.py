@@ -251,6 +251,7 @@ class AKShareClient:
             融资融券数据字典
         """
         if ak is None:
+            logger.error("AKShare 未安装，无法获取融资融券数据")
             return {}
 
         code = code.strip()
@@ -265,29 +266,21 @@ class AKShareClient:
         try:
             # 根据股票代码选择交易所
             df = None
+            exchange = "sh" if code.startswith('6') else "sz"
+            logger.info(f"尝试获取 {code} 的融资融券数据（{exchange}交所）")
+            
             if code.startswith('6'):
                 # 上交所
-                try:
-                    date_str = datetime.now().strftime('%Y%m%d')
-                    df = ak.stock_margin_detail_sse(date=date_str)
-                except Exception:
-                    # 尝试前一交易日
-                    from datetime import timedelta
-                    yesterday = (datetime.now() - timedelta(days=1)).strftime('%Y%m%d')
-                    df = ak.stock_margin_detail_sse(date=yesterday)
+                df, data_date = self._try_fetch_margin(code, 'sh')
             else:
                 # 深交所
-                try:
-                    date_str = datetime.now().strftime('%Y%m%d')
-                    df = ak.stock_margin_detail_szse(date=date_str)
-                except Exception:
-                    from datetime import timedelta
-                    yesterday = (datetime.now() - timedelta(days=1)).strftime('%Y%m%d')
-                    df = ak.stock_margin_detail_szse(date=yesterday)
+                df, data_date = self._try_fetch_margin(code, 'sz')
             
             if df is None or df.empty:
                 logger.warning(f"融资融券数据为空，代码: {code}")
                 return {}
+            
+            logger.info(f"数据列名: {df.columns.tolist()}")
             
             # 查找代码列
             code_col = None
@@ -300,20 +293,23 @@ class AKShareClient:
                 logger.warning(f"融资融券数据找不到代码列，列名: {df.columns.tolist()}")
                 return {}
             
+            logger.info(f"找到代码列: {code_col}")
+            
             # 筛选指定股票
             df[code_col] = df[code_col].astype(str).str.strip()
             stock_data = df[df[code_col] == code]
             
             if stock_data.empty:
-                logger.warning(f"未找到 {code} 的融资融券数据")
+                logger.warning(f"未找到 {code} 的融资融券数据（该股票可能不在融资融券标的中）")
                 return {}
             
+            logger.info(f"找到 {code} 的融资融券数据")
             latest = stock_data.iloc[0]
             
             # 动态匹配列名
             result = {
                 'code': code,
-                'date': str(self._find_col_val(latest, ['日期', '信用交易日期', '交易日期'])),
+                'date': data_date if data_date else str(self._find_col_val(latest, ['日期', '信用交易日期', '交易日期'])),
                 '融资余额': self._safe_float(self._find_col_val(latest, ['融资余额(元)', '融资余额', '融资余额(万元)'])),
                 '融资买入额': self._safe_float(self._find_col_val(latest, ['融资买入额(元)', '融资买入额', '融资买入额(万元)'])),
                 '融资偿还额': self._safe_float(self._find_col_val(latest, ['融资偿还额(元)', '融资偿还额', '融资偿还额(万元)'])),
@@ -326,10 +322,11 @@ class AKShareClient:
                 '融资融券余额': self._safe_float(self._find_col_val(latest, ['融资融券余额(元)', '融资融券余额', '融资融券余额(万元)'])),
             }
             
+            logger.info(f"融资融券数据提取成功")
             cache_set(cache_key, result, timeout=CACHE_TTL['akshare'])
             return result
         except Exception as e:
-            logger.error(f"获取融资融券数据失败 {code}: {e}")
+            logger.error(f"获取融资融券数据失败 {code}: {e}", exc_info=True)
             return {}
 
     def _safe_float(self, value) -> float:
@@ -341,6 +338,44 @@ class AKShareClient:
             return 0.0 if pd.isna(val) else val
         except (ValueError, TypeError):
             return 0.0
+    
+    def _try_fetch_margin(self, code: str, exchange: str) -> tuple:
+        """
+        尝试获取融资融券数据，循环往前推算最近交易日
+        
+        Args:
+            code: 股票代码（6位）
+            exchange: 交易所 'sh' 或 'sz'
+        
+        Returns:
+            (DataFrame, date_str) 元组，或 (None, None)
+        """
+        from datetime import timedelta
+        
+        # 尝试最近7天（覆盖周末和节假日）
+        for days_back in range(7):
+            try:
+                target_date = (datetime.now() - timedelta(days=days_back)).strftime('%Y%m%d')
+                logger.info(f"尝试日期: {target_date}（{exchange}交所）")
+                
+                if exchange == 'sh':
+                    df = ak.stock_margin_detail_sse(date=target_date)
+                else:
+                    df = ak.stock_margin_detail_szse(date=target_date)
+                
+                if df is not None and not df.empty:
+                    logger.info(f"成功获取数据，日期: {target_date}，共 {len(df)} 条记录")
+                    # 格式化日期为 YYYY-MM-DD
+                    formatted_date = f"{target_date[:4]}-{target_date[4:6]}-{target_date[6:8]}"
+                    return df, formatted_date
+                else:
+                    logger.info(f"日期 {target_date} 返回空数据")
+            except Exception as e:
+                logger.warning(f"日期 {target_date} 获取失败: {e}")
+                continue
+        
+        logger.warning(f"最近7天均无融资融券数据")
+        return None, None
 
     def _find_col_val(self, row, candidates: list):
         """从候选列名中找第一个存在的值"""
