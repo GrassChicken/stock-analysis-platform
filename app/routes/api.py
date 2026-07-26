@@ -114,7 +114,7 @@ def get_score(code: str):
         result = scorer.score(code)
         
         # 存入缓存（5分钟 = 300秒）
-        flask_cache.set(cache_key, result, timeout=300)
+        flask_cache.set(cache_key, result, timeout=600)
         logger.info(f"评分结果已缓存: {code}")
         
         return jsonify(result)
