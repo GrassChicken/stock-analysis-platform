@@ -19,8 +19,9 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     # 缓存
-    CACHE_TYPE = "SimpleCache"
+    CACHE_TYPE = os.getenv("CACHE_TYPE", "SimpleCache")
     CACHE_DEFAULT_TIMEOUT = 300
+    CACHE_REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 
     # 通达信
     TDX_SERVERS = os.getenv(
@@ -33,8 +34,16 @@ class Config:
     AI_MODEL = os.getenv("AI_MODEL", "qwen-plus")
 
 
+class DevelopmentConfig(Config):
+    """开发配置"""
+    DEBUG = True
+    CACHE_TYPE = "SimpleCache"
+    CACHE_DEFAULT_TIMEOUT = 300
+
+
 class ProductionConfig(Config):
     """生产配置"""
     DEBUG = False
-    CACHE_TYPE = "SimpleCache"
+    CACHE_TYPE = "RedisCache"
     CACHE_DEFAULT_TIMEOUT = 600
+    CACHE_REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")

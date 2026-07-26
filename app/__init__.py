@@ -1,12 +1,22 @@
 """Flask 应用工厂函数"""
+import os
 from flask import Flask
-from app.config import Config
+from app.config import Config, DevelopmentConfig, ProductionConfig
 from app.extensions import db, cache
 
 
-def create_app(config_class=Config):
+def create_app(config_class=None):
     """创建并配置 Flask 应用"""
     app = Flask(__name__, instance_relative_config=True)
+    
+    # 根据环境变量选择配置类
+    if config_class is None:
+        env = os.getenv('FLASK_ENV', 'development')
+        if env == 'production':
+            config_class = ProductionConfig
+        else:
+            config_class = DevelopmentConfig
+    
     app.config.from_object(config_class)
 
     # 初始化扩展
