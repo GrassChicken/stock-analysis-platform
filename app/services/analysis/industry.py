@@ -71,14 +71,18 @@ class IndustryAnalyzer:
         self._stock_info_cache = stock_info
         self._daily_basic_cache = {}
         
+        # 先执行同行对比，获取并缓存 peer_data
+        peer_comparison = self._analyze_peer_comparison(code, stock_info)
+        
         result = {
             'code': code,
             'analysis_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
             'industry_info': self._analyze_industry(stock_info),
-            'peer_comparison': self._analyze_peer_comparison(code, stock_info),
+            'peer_comparison': peer_comparison,
             'industry_trend': self._analyze_industry_trend(stock_info),
             'concept_tags': self._get_concept_tags(code),
-            'industry_score': self._calc_industry_score(code, stock_info),
+            # 将 peer_comparison 传递给评分方法，复用数据
+            'industry_score': self._calc_industry_score(code, stock_info, peer_comparison),
         }
         
         # 清理缓存
@@ -146,7 +150,7 @@ class IndustryAnalyzer:
             
             # 获取关键指标（PE、PB、市值）
             peer_data = []
-            for stock in peer_stocks[:20]:  # 限制数量，避免API调用太多
+            for stock in peer_stocks[:10]:  # 限制到10只，减少API调用
                 try:
                     ts_code = stock.get('ts_code', '')
                     if not ts_code:
@@ -253,7 +257,7 @@ class IndustryAnalyzer:
             'industry': industry,
         }
 
-    def _calc_industry_score(self, code: str, stock_info: Dict[str, Any]) -> Dict[str, Any]:
+    def _calc_industry_score(self, code: str, stock_info: Dict[str, Any], peer_comparison: Dict[str, Any] = None) -> Dict[str, Any]:
         """
         计算行业面评分
         
@@ -292,43 +296,28 @@ class IndustryAnalyzer:
         score += heat_score
         
         # 2. 行业地位评分 (30分)
-        # 基于市值排名（使用缓存）
+        # 复用 peer_comparison 的结果，不再重复遍历和API调用
         try:
-            ts_code = stock_info.get('ts_code', '')
-            daily_basic = self._get_cached_daily_basic(ts_code) if ts_code else {}
-            total_mv = daily_basic.get('total_mv', 0) if daily_basic else 0
+            if peer_comparison and peer_comparison.get('available'):
+                mv_rank = peer_comparison.get('mv_rank', 15)
+            else:
+                mv_rank = 15  # 默认中等
             
-            # 获取同行业股票
-            stocks = stock_service.get_all_stocks()
-            peer_stocks = [s for s in stocks if s.get('industry') == industry]
+            # 排名越靠前分数越高
+            if mv_rank <= 3:
+                position_score = 30
+            elif mv_rank <= 5:
+                position_score = 25
+            elif mv_rank <= 10:
+                position_score = 20
+            elif mv_rank <= 15:
+                position_score = 15
+            else:
+                position_score = 10
             
-            if len(peer_stocks) >= 5:
-                # 简化版：按市值排序估算
-                mv_rank = 1
-                for peer in peer_stocks[:20]:
-                    try:
-                        peer_ts_code = peer.get('ts_code', '')
-                        peer_basic = self._get_cached_daily_basic(peer_ts_code) if peer_ts_code else {}
-                        if peer_basic and peer_basic.get('total_mv', 0) > total_mv:
-                            mv_rank += 1
-                    except:
-                        continue
-                
-                # 排名越靠前分数越高
-                if mv_rank <= 3:
-                    position_score = 30
-                elif mv_rank <= 5:
-                    position_score = 25
-                elif mv_rank <= 10:
-                    position_score = 20
-                elif mv_rank <= 15:
-                    position_score = 15
-                else:
-                    position_score = 10
-                
-                details['position_score'] = position_score
-                details['position_desc'] = f"行业市值排名第{mv_rank}"
-                score += position_score
+            details['position_score'] = position_score
+            details['position_desc'] = f"行业市值排名第{mv_rank}"
+            score += position_score
         except Exception as e:
             logger.warning(f"行业地位评分失败: {e}")
             details['position_score'] = 15

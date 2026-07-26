@@ -19,6 +19,7 @@ CACHE_TTL = {
     'stock_list': 86400,  # 股票列表缓存 24h
     'daily_basic': 60,    # 每日指标缓存 1min
     'akshare': 60,        # AKShare 数据缓存 1min
+    'score': 300,         # 综合评分缓存 5min
 }
 
 

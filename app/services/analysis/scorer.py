@@ -13,6 +13,7 @@ from app.services.analysis.dupont import DupontAnalyzer
 from app.services.analysis.technical import TechnicalAnalyzer
 from app.services.analysis.capital import capital_analyzer
 from app.services.analysis.industry import industry_analyzer
+from app.services.data.cache_manager import cached
 
 logger = logging.getLogger(__name__)
 
@@ -28,31 +29,29 @@ class StockScorer:
         self.capital_analyzer = capital_analyzer
         self.industry_analyzer = industry_analyzer
     
-    def score(self, code: str, use_collector: bool = True) -> Dict[str, Any]:
+    @cached('score')  # 缓存5分钟
+    def score(self, code: str) -> Dict[str, Any]:
         """
         综合评分（0-100）
         
         Args:
             code: 股票代码
-            use_collector: 是否使用 DataCollector 统一获取数据（默认True，性能更好）
         
         Returns:
             评分结果字典
         """
         try:
             # 使用 DataCollector 统一获取数据（性能优化）
-            preloaded = None
-            if use_collector:
-                from app.services.data.data_collector import data_collector
-                preloaded = data_collector.collect(code)
+            from app.services.data.data_collector import data_collector
+            preloaded = data_collector.collect(code)
             
-            # 获取各项分析结果（传入预加载数据）
-            fundamental = self.fundamental_analyzer.analyze(code, preloaded=preloaded)
-            valuation = self.valuation_analyzer.analyze(code, preloaded=preloaded)
-            dupont = self.dupont_analyzer.analyze(code, preloaded=preloaded)
-            technical = self.technical_analyzer.analyze(code, preloaded=preloaded)
-            capital = self.capital_analyzer.analyze(code, preloaded=preloaded)
-            industry = self.industry_analyzer.analyze(code, preloaded=preloaded)
+            # 串行执行各项分析（避免线程开销）
+            fundamental = self.fundamental_analyzer.analyze(code, preloaded)
+            valuation = self.valuation_analyzer.analyze(code, preloaded)
+            dupont = self.dupont_analyzer.analyze(code, preloaded)
+            technical = self.technical_analyzer.analyze(code, preloaded)
+            capital = self.capital_analyzer.analyze(code, preloaded)
+            industry = self.industry_analyzer.analyze(code, preloaded)
             
             # 计算各维度评分
             fundamental_score = self._score_fundamental(fundamental)
