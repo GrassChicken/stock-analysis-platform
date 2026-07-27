@@ -18,6 +18,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const resultsBox = document.getElementById('search-results');
     let debounceTimer = null;
 
+    // 加载自选股
+    loadWatchlist();
+    
+    // 切换自选股面板
+    document.getElementById('toggle-watchlist').addEventListener('click', function() {
+        const panel = document.getElementById('watchlist-panel');
+        const arrow = document.getElementById('watchlist-arrow');
+        panel.classList.toggle('hidden');
+        arrow.classList.toggle('rotate-180');
+    });
+
     input.addEventListener('input', () => {
         clearTimeout(debounceTimer);
         debounceTimer = setTimeout(() => {
@@ -39,7 +50,56 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('compare-btn').addEventListener('click', startCompare);
 });
 
-async function fetchSearch(keyword) {
+// ==================== 自选股 ====================
+
+async function loadWatchlist() {
+    try {
+        const response = await fetch('/api/watchlist');
+        const data = await response.json();
+        renderWatchlist(data.watchlist || []);
+    } catch (error) {
+        console.error('加载自选股失败:', error);
+        document.getElementById('watchlist-content').innerHTML = 
+            '<div class="text-center py-6 text-red-500 text-sm">加载失败</div>';
+    }
+}
+
+function renderWatchlist(watchlist) {
+    const container = document.getElementById('watchlist-content');
+    
+    if (watchlist.length === 0) {
+        container.innerHTML = 
+            '<div class="text-center py-6 text-gray-400 text-sm">暂无自选股</div>';
+        return;
+    }
+    
+    const html = watchlist.map(stock => `
+        <div class="watchlist-item flex items-center justify-between px-4 py-3 hover:bg-amber-50 cursor-pointer transition border-b border-gray-100 last:border-b-0" 
+             data-code="${stock.code}" 
+             data-name="${stock.name}">
+            <div class="flex-1">
+                <div class="font-medium text-gray-800">${stock.name}</div>
+                <div class="text-xs text-gray-500">${stock.code}</div>
+            </div>
+            <button class="watchlist-add-btn px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-700 text-sm rounded-lg transition">
+                + 添加
+            </button>
+        </div>
+    `).join('');
+    
+    container.innerHTML = html;
+    
+    // 绑定点击事件
+    document.querySelectorAll('.watchlist-item').forEach(item => {
+        item.addEventListener('click', function() {
+            const code = this.dataset.code;
+            const name = this.dataset.name;
+            addStock(code, name);
+        });
+    });
+}
+
+// ==================== 搜索 ====================
     try {
         const res = await fetch(`/api/search?q=${encodeURIComponent(keyword)}`);
         const data = await res.json();

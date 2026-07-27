@@ -26,6 +26,29 @@
         <!-- 搜索结果 -->
         <div id="search-results" class="hidden mb-4"></div>
 
+        <!-- 从自选股选择 -->
+        <div class="mb-4">
+            <button id="toggle-watchlist" class="flex items-center justify-between w-full px-4 py-3 bg-gradient-to-r from-amber-50 to-orange-50 hover:from-amber-100 hover:to-orange-100 border border-amber-200 rounded-lg transition text-sm font-medium text-amber-700">
+                <span class="flex items-center">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"></path>
+                    </svg>
+                    从自选股选择
+                </span>
+                <svg id="watchlist-arrow" class="w-4 h-4 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                </svg>
+            </button>
+            <div id="watchlist-panel" class="hidden mt-2 border border-amber-200 rounded-lg bg-white overflow-hidden">
+                <div class="px-4 py-2 bg-amber-50 border-b border-amber-200 text-xs text-amber-700 font-medium">
+                    点击股票添加到对比
+                </div>
+                <div id="watchlist-content" class="max-h-64 overflow-y-auto">
+                    <div class="text-center py-6 text-gray-400 text-sm">加载中...</div>
+                </div>
+            </div>
+        </div>
+
         <!-- 已选股票标签 -->
         <div id="selected-stocks" class="flex flex-wrap gap-2 min-h-[40px]">
             <span class="text-sm text-gray-400">暂未选择股票</span>
