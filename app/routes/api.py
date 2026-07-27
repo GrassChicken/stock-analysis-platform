@@ -21,27 +21,11 @@ def search():
     """搜索股票"""
     keyword = request.args.get('q', '').strip()
     
-    # 调试：打印接收到的参数
-    logger.info(f"搜索请求 - 原始关键词: {repr(keyword)}, 编码: {keyword.encode('utf-8')}")
-    
     if not keyword:
         results = []
     else:
         try:
-            # 尝试处理可能的编码问题
-            try:
-                # 如果是乱码（如 'å¹³å®'），尝试修复
-                if keyword.isascii() and len(keyword) > 2:
-                    # 可能被错误解码了，尝试重新编码
-                    fixed = keyword.encode('latin-1').decode('utf-8')
-                    if fixed != keyword:
-                        logger.info(f"搜索请求 - 修复编码: {repr(keyword)} -> {repr(fixed)}")
-                        keyword = fixed
-            except:
-                pass
-            
             results = stock_service.search_stock(keyword)[:20]
-            logger.info(f"搜索请求 - 返回结果数: {len(results)}")
         except Exception as e:
             logger.error(f"搜索异常: {e}")
             if request.headers.get('HX-Request'):
@@ -124,10 +108,18 @@ def get_score(code: str):
 
 @api_bp.route("/stock/<code>/fundamental")
 def get_fundamental(code: str):
-    """基本面分析"""
+    """基本面分析（缓存1小时）"""
+    cache_key = f"fundamental:{code}"
+    cached_result = flask_cache.get(cache_key)
+    if cached_result is not None:
+        logger.debug(f"基本面缓存命中: {code}")
+        return jsonify(cached_result)
+    
     try:
         analyzer = FundamentalAnalyzer()
         result = analyzer.analyze(code)
+        flask_cache.set(cache_key, result, timeout=3600)
+        logger.debug(f"基本面结果已缓存: {code}")
         return jsonify(result)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -135,10 +127,18 @@ def get_fundamental(code: str):
 
 @api_bp.route("/stock/<code>/valuation")
 def get_valuation(code: str):
-    """估值分析"""
+    """估值分析（缓存1小时）"""
+    cache_key = f"valuation:{code}"
+    cached_result = flask_cache.get(cache_key)
+    if cached_result is not None:
+        logger.debug(f"估值缓存命中: {code}")
+        return jsonify(cached_result)
+    
     try:
         analyzer = ValuationAnalyzer()
         result = analyzer.analyze(code)
+        flask_cache.set(cache_key, result, timeout=3600)
+        logger.debug(f"估值结果已缓存: {code}")
         return jsonify(result)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -146,10 +146,18 @@ def get_valuation(code: str):
 
 @api_bp.route("/stock/<code>/dupont")
 def get_dupont(code: str):
-    """杜邦分析"""
+    """杜邦分析（缓存1小时）"""
+    cache_key = f"dupont:{code}"
+    cached_result = flask_cache.get(cache_key)
+    if cached_result is not None:
+        logger.debug(f"杜邦缓存命中: {code}")
+        return jsonify(cached_result)
+    
     try:
         analyzer = DupontAnalyzer()
         result = analyzer.analyze(code)
+        flask_cache.set(cache_key, result, timeout=3600)
+        logger.debug(f"杜邦结果已缓存: {code}")
         return jsonify(result)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -157,10 +165,18 @@ def get_dupont(code: str):
 
 @api_bp.route("/stock/<code>/technical")
 def get_technical(code: str):
-    """技术面分析"""
+    """技术面分析（缓存1小时）"""
+    cache_key = f"technical:{code}"
+    cached_result = flask_cache.get(cache_key)
+    if cached_result is not None:
+        logger.debug(f"技术面缓存命中: {code}")
+        return jsonify(cached_result)
+    
     try:
         analyzer = TechnicalAnalyzer()
         result = analyzer.analyze(code)
+        flask_cache.set(cache_key, result, timeout=3600)
+        logger.debug(f"技术面结果已缓存: {code}")
         return jsonify(result)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -168,9 +184,17 @@ def get_technical(code: str):
 
 @api_bp.route("/stock/<code>/capital")
 def get_capital(code: str):
-    """资金面分析"""
+    """资金面分析（缓存1小时）"""
+    cache_key = f"capital:{code}"
+    cached_result = flask_cache.get(cache_key)
+    if cached_result is not None:
+        logger.debug(f"资金面缓存命中: {code}")
+        return jsonify(cached_result)
+    
     try:
         result = capital_analyzer.analyze(code)
+        flask_cache.set(cache_key, result, timeout=3600)
+        logger.debug(f"资金面结果已缓存: {code}")
         return jsonify(result)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -178,9 +202,17 @@ def get_capital(code: str):
 
 @api_bp.route("/stock/<code>/industry")
 def get_industry(code: str):
-    """行业面分析"""
+    """行业面分析（缓存1小时）"""
+    cache_key = f"industry:{code}"
+    cached_result = flask_cache.get(cache_key)
+    if cached_result is not None:
+        logger.debug(f"行业面缓存命中: {code}")
+        return jsonify(cached_result)
+    
     try:
         result = industry_analyzer.analyze(code)
+        flask_cache.set(cache_key, result, timeout=3600)
+        logger.debug(f"行业面结果已缓存: {code}")
         return jsonify(result)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -188,7 +220,13 @@ def get_industry(code: str):
 
 @api_bp.route("/stock/<code>/ai")
 def get_ai_analysis(code: str):
-    """AI 智能分析"""
+    """AI 智能分析（缓存1小时）"""
+    cache_key = f"ai:{code}"
+    cached_result = flask_cache.get(cache_key)
+    if cached_result is not None:
+        logger.debug(f"AI分析缓存命中: {code}")
+        return jsonify(cached_result)
+    
     try:
         from app.services.analysis.ai_analyzer import AIAnalyzer
         
@@ -225,6 +263,9 @@ def get_ai_analysis(code: str):
         # 调用 AI 分析
         analyzer = AIAnalyzer()
         result = analyzer.analyze(ai_data)
+        
+        flask_cache.set(cache_key, result, timeout=3600)
+        logger.debug(f"AI分析结果已缓存: {code}")
         
         return jsonify(result)
     except Exception as e:
