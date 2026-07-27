@@ -38,7 +38,7 @@ def search():
     if request.headers.get('HX-Request'):
         return render_template('partials/search_results.html', results=results)
     
-    return success_response({"results": results})
+    return jsonify({"results": results})
 
 
 # ==================== 行情 ====================
@@ -51,7 +51,7 @@ def get_quote(code: str):
     quote = stock_service.get_quote(code)
     if not quote:
         raise NotFoundError("未找到行情数据", details={"code": code})
-    return success_response(quote)
+    return jsonify(quote)
 
 
 @api_bp.route("/stock/<code>/kline")
@@ -62,7 +62,7 @@ def get_kline(code: str):
     period = request.args.get('period', 'daily')
     count = int(request.args.get('count', 120))
     kline = stock_service.get_kline(code, period=period, count=count)
-    return success_response({"code": code, "period": period, "data": kline})
+    return jsonify({"code": code, "period": period, "data": kline})
 
 
 @api_bp.route("/stock/<code>/daily_basic")
@@ -73,7 +73,7 @@ def get_daily_basic(code: str):
     data = stock_service.get_daily_basic(code)
     if not data:
         raise NotFoundError("未找到指标数据", details={"code": code})
-    return success_response(data)
+    return jsonify(data)
 
 
 # ==================== 分析 ====================
@@ -92,7 +92,7 @@ def get_score(code: str):
     cached_result = flask_cache.get(cache_key)
     if cached_result is not None:
         logger.info(f"评分缓存命中: {code}")
-        return success_response(cached_result)
+        return jsonify(cached_result)
     
     # 缓存未命中，执行计算
     scorer = StockScorer()
@@ -102,7 +102,7 @@ def get_score(code: str):
     flask_cache.set(cache_key, result, timeout=600)
     logger.info(f"评分结果已缓存: {code}")
     
-    return success_response(result)
+    return jsonify(result)
 
 
 @api_bp.route("/stock/<code>/fundamental")
@@ -114,13 +114,13 @@ def get_fundamental(code: str):
     cached_result = flask_cache.get(cache_key)
     if cached_result is not None:
         logger.debug(f"基本面缓存命中: {code}")
-        return success_response(cached_result)
+        return jsonify(cached_result)
     
     analyzer = FundamentalAnalyzer()
     result = analyzer.analyze(code)
     flask_cache.set(cache_key, result, timeout=3600)
     logger.debug(f"基本面结果已缓存: {code}")
-    return success_response(result)
+    return jsonify(result)
 
 
 @api_bp.route("/stock/<code>/valuation")
@@ -132,13 +132,13 @@ def get_valuation(code: str):
     cached_result = flask_cache.get(cache_key)
     if cached_result is not None:
         logger.debug(f"估值缓存命中: {code}")
-        return success_response(cached_result)
+        return jsonify(cached_result)
     
     analyzer = ValuationAnalyzer()
     result = analyzer.analyze(code)
     flask_cache.set(cache_key, result, timeout=3600)
     logger.debug(f"估值结果已缓存: {code}")
-    return success_response(result)
+    return jsonify(result)
 
 
 @api_bp.route("/stock/<code>/dupont")
@@ -150,13 +150,13 @@ def get_dupont(code: str):
     cached_result = flask_cache.get(cache_key)
     if cached_result is not None:
         logger.debug(f"杜邦缓存命中: {code}")
-        return success_response(cached_result)
+        return jsonify(cached_result)
     
     analyzer = DupontAnalyzer()
     result = analyzer.analyze(code)
     flask_cache.set(cache_key, result, timeout=3600)
     logger.debug(f"杜邦结果已缓存: {code}")
-    return success_response(result)
+    return jsonify(result)
 
 
 @api_bp.route("/stock/<code>/technical")
@@ -168,13 +168,13 @@ def get_technical(code: str):
     cached_result = flask_cache.get(cache_key)
     if cached_result is not None:
         logger.debug(f"技术面缓存命中: {code}")
-        return success_response(cached_result)
+        return jsonify(cached_result)
     
     analyzer = TechnicalAnalyzer()
     result = analyzer.analyze(code)
     flask_cache.set(cache_key, result, timeout=3600)
     logger.debug(f"技术面结果已缓存: {code}")
-    return success_response(result)
+    return jsonify(result)
 
 
 @api_bp.route("/stock/<code>/capital")
@@ -186,12 +186,12 @@ def get_capital(code: str):
     cached_result = flask_cache.get(cache_key)
     if cached_result is not None:
         logger.debug(f"资金面缓存命中: {code}")
-        return success_response(cached_result)
+        return jsonify(cached_result)
     
     result = capital_analyzer.analyze(code)
     flask_cache.set(cache_key, result, timeout=3600)
     logger.debug(f"资金面结果已缓存: {code}")
-    return success_response(result)
+    return jsonify(result)
 
 
 @api_bp.route("/stock/<code>/industry")
@@ -203,12 +203,12 @@ def get_industry(code: str):
     cached_result = flask_cache.get(cache_key)
     if cached_result is not None:
         logger.debug(f"行业面缓存命中: {code}")
-        return success_response(cached_result)
+        return jsonify(cached_result)
     
     result = industry_analyzer.analyze(code)
     flask_cache.set(cache_key, result, timeout=3600)
     logger.debug(f"行业面结果已缓存: {code}")
-    return success_response(result)
+    return jsonify(result)
 
 
 @api_bp.route("/stock/<code>/ai")
@@ -220,7 +220,7 @@ def get_ai_analysis(code: str):
     cached_result = flask_cache.get(cache_key)
     if cached_result is not None:
         logger.debug(f"AI分析缓存命中: {code}")
-        return success_response(cached_result)
+        return jsonify(cached_result)
     
     from app.services.analysis.ai_analyzer import AIAnalyzer
     
@@ -258,7 +258,7 @@ def get_ai_analysis(code: str):
     flask_cache.set(cache_key, result, timeout=3600)
     logger.debug(f"AI分析结果已缓存: {code}")
     
-    return success_response(result)
+    return jsonify(result)
 
 
 # ==================== 自选股 ====================
@@ -278,7 +278,7 @@ def get_watchlist():
             # HTMX 请求返回 HTML
             if request.headers.get('HX-Request'):
                 return '<div class="text-center py-8"><p class="text-sm text-gray-400">暂无自选股</p><p class="text-xs text-gray-300 mt-1">搜索股票后点击 ⭐ 添加</p></div>'
-            return success_response({"watchlist": []})
+            return jsonify({"watchlist": []})
         
         # 获取实时行情
         watchlist_data = []
@@ -310,7 +310,7 @@ def get_watchlist():
         if request.headers.get('HX-Request'):
             return render_template('partials/watchlist_items.html', items=watchlist_data)
         
-        return success_response({"watchlist": watchlist_data})
+        return jsonify({"watchlist": watchlist_data})
     except Exception as e:
         logger.error(f"获取自选股列表失败: {e}")
         # HTMX 请求返回 HTML 错误
@@ -338,7 +338,7 @@ def add_watchlist():
         # 检查是否已存在
         existing = Watchlist.query.filter_by(code=code).first()
         if existing:
-            return success_response({"message": "已在自选股中", "code": code}, code=200)
+            return jsonify({"message": "已在自选股中", "code": code}, code=200)
         
         # 创建新记录
         item = Watchlist(code=code, name=name, group_name=group_name)
@@ -346,7 +346,7 @@ def add_watchlist():
         db.session.commit()
         
         logger.info(f"添加自选股: {code} {name}")
-        return success_response({"message": "已添加自选股", "code": code, "name": name}, code=201)
+        return jsonify({"message": "已添加自选股", "code": code, "name": name}, code=201)
     except Exception as e:
         db.session.rollback()
         logger.error(f"添加自选股失败: {e}")
@@ -370,7 +370,7 @@ def remove_watchlist(code: str):
         db.session.commit()
         
         logger.info(f"删除自选股: {code}")
-        return success_response({"message": "已移除自选股", "code": code})
+        return jsonify({"message": "已移除自选股", "code": code})
     except Exception as e:
         db.session.rollback()
         logger.error(f"删除自选股失败: {e}")
@@ -391,7 +391,7 @@ def compare_stocks():
         raise ValidationError("至少选择 2 只股票", details={"received_count": len(codes) if codes else 0})
 
     result = compare_service.compare(codes)
-    return success_response(result)
+    return jsonify(result)
 
 
 
@@ -419,7 +419,7 @@ def generate_report(code: str):
         # 如果缓存存在，直接返回
         if os.path.exists(cached_filepath):
             logger.info(f"✓ PDF 报告缓存命中: {cached_filename}")
-            return success_response({
+            return jsonify({
                 'success': True, 
                 'filepath': cached_filepath, 
                 'filename': cached_filename,
@@ -457,7 +457,7 @@ def generate_report(code: str):
         filepath = pdf_generator.generate_with_filename(report_data, cached_filepath)
         
         logger.info(f"✓ PDF 报告已生成并缓存: {cached_filename}")
-        return success_response({
+        return jsonify({
             'success': True, 
             'filepath': filepath, 
             'filename': cached_filename,
