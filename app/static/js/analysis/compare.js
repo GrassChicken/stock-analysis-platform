@@ -100,6 +100,8 @@ function renderWatchlist(watchlist) {
 }
 
 // ==================== 搜索 ====================
+
+async function fetchSearch(keyword) {
     try {
         const res = await fetch(`/api/search?q=${encodeURIComponent(keyword)}`);
         const data = await res.json();
