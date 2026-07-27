@@ -44,17 +44,14 @@
                         <span id="favorites-count" class="text-xs bg-amber-200 text-amber-700 px-1.5 py-0.5 rounded-full">0</span>
                     </a>
                     <div class="mt-1 ml-3 space-y-0.5" id="favorites-list">
-                        <!-- 动态生成收藏列表 -->
                     </div>
                 </div>
 
                 <h3 class="font-bold text-gray-700 mb-3 text-sm">📑 指标分类</h3>
-                <nav id="category-nav" class="space-y-1">
-                    <!-- 动态生成分类导航 -->
-                </nav>
+                <nav id="category-nav" class="space-y-1"></nav>
                 <div class="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between">
                     <div class="text-xs text-gray-400">共 <span id="total-count" class="font-bold text-primary-600">0</span> 个指标</div>
-                    <button id="favorites-toggle" class="text-xs text-gray-400 hover:text-amber-500 transition flex items-center gap-1" title="切换收藏视图">
+                    <button id="favorites-toggle" class="text-xs text-gray-400 hover:text-amber-500 transition flex items-center gap-1">
                         <span>⭐</span>
                         <span id="favorites-toggle-text">显示收藏</span>
                     </button>
@@ -64,9 +61,7 @@
 
         <!-- 右侧内容区 -->
         <main class="flex-1 min-w-0">
-            <div id="indicators-container" class="space-y-8">
-                <!-- 动态生成指标卡片 -->
-            </div>
+            <div id="indicators-container" class="space-y-8"></div>
             <div id="empty-state" class="hidden text-center py-16">
                 <div class="text-6xl mb-4">🔍</div>
                 <p class="text-gray-500 text-lg">没有找到匹配的指标</p>
@@ -81,33 +76,28 @@
     </div>
 </div>
 
-<!-- ========== 关联图谱弹窗 ========== -->
-<div id="graph-overlay" class="hidden fixed inset-0 z-50 bg-black bg-opacity-60 flex items-center justify-center p-2 sm:p-4">
-    <div class="bg-white rounded-xl sm:rounded-2xl shadow-2xl w-full max-w-5xl flex flex-col overflow-hidden" style="height: min(85vh, 900px); max-height: 90vh;">
-        <!-- 使用 min() 和 max-height 确保在所有设备上都有合理的尺寸 -->
-        <!-- 头部 -->
-        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+<!-- 关联图谱弹窗 -->
+<div id="graph-overlay" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl flex flex-col overflow-hidden" style="max-height: 90vh;">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
             <div>
                 <h2 class="text-lg font-bold text-gray-800">🔗 指标关联图谱</h2>
-                <p class="text-xs text-gray-500 mt-0.5">点击节点查看详情 · 拖拽节点调整位置 · 滚轮缩放</p>
+                <p class="text-xs text-gray-500 mt-0.5">点击节点查看详情 · 拖拽移动 · 滚轮缩放</p>
             </div>
             <button id="graph-close" class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
             </button>
         </div>
-        <!-- 图例 -->
-        <div class="px-6 py-2 flex items-center gap-4 text-xs border-b border-gray-50">
+        <div class="px-6 py-2 flex items-center gap-4 text-xs border-b border-gray-100">
             <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-blue-500 inline-block"></span> 基本面</span>
             <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-green-500 inline-block"></span> 技术面</span>
             <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-amber-500 inline-block"></span> 资金面</span>
             <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-purple-500 inline-block"></span> 行业面</span>
         </div>
-        <!-- Canvas -->
-        <div id="graph-canvas-container" style="width: 100%; flex: 1; min-height: 400px; position: relative; overflow: hidden; background: #fafafa;">
-            <canvas id="graph-canvas" style="display: block; touch-action: none;" class="cursor-grab"></canvas>
+        <div id="graph-canvas-container" style="height: 600px; position: relative; background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);">
+            <canvas id="graph-canvas" style="width: 100%; height: 100%; cursor: grab; touch-action: none;"></canvas>
         </div>
-        <!-- 底部提示 -->
-        <div class="px-6 py-3 border-t border-gray-100 bg-gray-50 flex items-center justify-between">
+        <div class="px-6 py-3 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
             <div id="graph-node-info" class="text-sm text-gray-500">点击节点查看指标详情</div>
             <button id="graph-jump" class="hidden px-3 py-1.5 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition">
                 查看指标详情 →
@@ -119,149 +109,91 @@
 
 {% block extra_js %}
 <script>
-// ========== 全局状态 ==========
+// 全局状态
 let indicatorsData = null;
 let allIndicators = [];
 let favorites = new Set();
 let isFavoritesView = false;
 
-const FAVORITES_KEY = 'knowledge_favorites';
+const FAVORITES_KEY = 'knowledge-favorites';
 
 // ========== 收藏功能 ==========
 function loadFavorites() {
     try {
         const stored = localStorage.getItem(FAVORITES_KEY);
-        if (stored) {
-            favorites = new Set(JSON.parse(stored));
-        }
-    } catch (e) {
-        console.warn('加载收藏失败:', e);
-    }
+        if (stored) favorites = new Set(JSON.parse(stored));
+    } catch (e) {}
 }
 
 function saveFavorites() {
-    try {
-        localStorage.setItem(FAVORITES_KEY, JSON.stringify([...favorites]));
-    } catch (e) {
-        console.warn('保存收藏失败:', e);
-    }
+    localStorage.setItem(FAVORITES_KEY, JSON.stringify([...favorites]));
 }
 
 function toggleFavorite(id) {
-    if (favorites.has(id)) {
-        favorites.delete(id);
-    } else {
-        favorites.add(id);
-    }
+    if (favorites.has(id)) favorites.delete(id);
+    else favorites.add(id);
     saveFavorites();
     updateFavoritesUI();
-    // 如果在收藏视图中，更新显示
-    if (isFavoritesView) {
-        filterFavoritesView();
-    }
+    if (isFavoritesView) filterFavoritesView();
 }
 
-function isFavorited(id) {
-    return favorites.has(id);
-}
+function isFavorited(id) { return favorites.has(id); }
 
 function updateFavoritesUI() {
     const section = document.getElementById('favorites-section');
     const countEl = document.getElementById('favorites-count');
     const listEl = document.getElementById('favorites-list');
-    const toggleText = document.getElementById('favorites-toggle-text');
 
     if (favorites.size > 0) {
         section.classList.remove('hidden');
         countEl.textContent = favorites.size;
-
-        // 生成收藏列表
-        let listHTML = '';
+        let html = '';
         favorites.forEach(id => {
             const ind = allIndicators.find(i => i.id === id);
-            if (ind) {
-                listHTML += `
-                    <a href="#indicator-${id}" class="fav-nav-link block px-3 py-1.5 rounded text-xs text-gray-600 hover:bg-amber-50 hover:text-amber-600 transition truncate" data-target="${id}">
-                        ${ind.symbol} ${ind.name}
-                    </a>
-                `;
-            }
+            if (ind) html += `<a href="#indicator-${id}" class="fav-link block px-3 py-1.5 rounded text-xs text-gray-600 hover:bg-amber-50 transition">${ind.symbol} ${ind.name}</a>`;
         });
-        listEl.innerHTML = listHTML;
-
-        // 绑定收藏导航点击
-        listEl.querySelectorAll('.fav-nav-link').forEach(link => {
+        listEl.innerHTML = html;
+        listEl.querySelectorAll('.fav-link').forEach(link => {
             link.addEventListener('click', (e) => {
                 e.preventDefault();
-                const targetId = link.getAttribute('data-target');
-                if (isFavoritesView) {
-                    exitFavoritesView();
-                }
+                if (isFavoritesView) exitFavoritesView();
                 clearSearch();
-                const targetEl = document.getElementById(`indicator-${targetId}`);
-                if (targetEl) {
-                    targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    targetEl.classList.add('ring-2', 'ring-amber-400');
-                    setTimeout(() => {
-                        targetEl.classList.remove('ring-2', 'ring-amber-400');
-                    }, 2000);
+                const target = document.getElementById('indicator-' + link.dataset.target);
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth' });
+                    target.classList.add('ring-2', 'ring-amber-400');
+                    setTimeout(() => target.classList.remove('ring-2', 'ring-amber-400'), 2000);
                 }
             });
         });
     } else {
         section.classList.add('hidden');
-        if (isFavoritesView) {
-            exitFavoritesView();
-        }
     }
 }
 
 function enterFavoritesView() {
     isFavoritesView = true;
     document.getElementById('favorites-toggle-text').textContent = '显示全部';
-    document.getElementById('favorites-nav').classList.add('ring-1', 'ring-amber-300');
     filterFavoritesView();
 }
 
 function exitFavoritesView() {
     isFavoritesView = false;
     document.getElementById('favorites-toggle-text').textContent = '显示收藏';
-    document.getElementById('favorites-nav').classList.remove('ring-1', 'ring-amber-300');
-    // 显示所有
-    document.querySelectorAll('.indicator-card').forEach(card => card.classList.remove('hidden'));
-    document.querySelectorAll('.category-section').forEach(section => section.classList.remove('hidden'));
-    document.querySelectorAll('.nav-category').forEach(nav => nav.classList.remove('opacity-40'));
-    document.querySelectorAll('.category-section > div.mb-6').forEach(div => div.classList.remove('hidden'));
+    document.querySelectorAll('.indicator-card').forEach(c => c.classList.remove('hidden'));
+    document.querySelectorAll('.category-section').forEach(s => s.classList.remove('hidden'));
     document.getElementById('favorites-empty').classList.add('hidden');
     document.getElementById('indicators-container').classList.remove('hidden');
 }
 
 function filterFavoritesView() {
-    document.getElementById('indicators-container').classList.remove('hidden');
-    document.getElementById('favorites-empty').classList.add('hidden');
-
-    let favCount = 0;
-    const matchedCategories = new Set();
-
+    let count = 0;
     document.querySelectorAll('.indicator-card').forEach(card => {
-        const indicatorId = card.id.replace('indicator-', '');
-        const isFav = favorites.has(indicatorId);
+        const isFav = favorites.has(card.dataset.id);
         card.classList.toggle('hidden', !isFav);
-        if (isFav) {
-            favCount++;
-            const section = card.closest('.category-section');
-            if (section) matchedCategories.add(section.getAttribute('data-category'));
-        }
+        if (isFav) count++;
     });
-
-    document.querySelectorAll('.category-section').forEach(section => {
-        section.classList.toggle('hidden', !matchedCategories.has(section.getAttribute('data-category')));
-    });
-    document.querySelectorAll('.nav-category:not(#favorites-nav)').forEach(nav => {
-        nav.classList.toggle('opacity-40', !matchedCategories.has(nav.getAttribute('data-category')));
-    });
-
-    if (favCount === 0) {
+    if (count === 0) {
         document.getElementById('indicators-container').classList.add('hidden');
         document.getElementById('favorites-empty').classList.remove('hidden');
     }
@@ -271,214 +203,88 @@ function filterFavoritesView() {
 async function loadIndicators() {
     loadFavorites();
     try {
-        const response = await fetch('/static/data/indicators.json');
-        indicatorsData = await response.json();
+        const res = await fetch('/static/data/indicators.json');
+        indicatorsData = await res.json();
         flattenIndicators();
         renderContent();
-        updateTotalCount();
+        document.getElementById('total-count').textContent = allIndicators.length;
         updateFavoritesUI();
-    } catch (error) {
-        console.error('加载指标数据失败:', error);
-        document.getElementById('indicators-container').innerHTML = `
-            <div class="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
-                <p class="text-red-600">加载失败，请刷新页面重试</p>
-            </div>
-        `;
+    } catch (e) {
+        document.getElementById('indicators-container').innerHTML = '<div class="bg-red-50 p-6 rounded-lg text-center text-red-600">加载失败，请刷新</div>';
     }
 }
 
 function flattenIndicators() {
     allIndicators = [];
-    Object.entries(indicatorsData).forEach(([categoryKey, category]) => {
-        category.categories.forEach(subcategory => {
-            subcategory.items.forEach(indicator => {
-                allIndicators.push({
-                    ...indicator,
-                    categoryKey,
-                    categoryName: category.name,
-                    categoryIcon: category.icon,
-                    subcategoryName: subcategory.name
-                });
+    Object.entries(indicatorsData).forEach(([key, cat]) => {
+        cat.categories.forEach(sub => {
+            sub.items.forEach(item => {
+                allIndicators.push({ ...item, categoryKey: key, categoryName: cat.name });
             });
         });
     });
-}
-
-function updateTotalCount() {
-    document.getElementById('total-count').textContent = allIndicators.length;
 }
 
 // ========== 渲染 ==========
 function renderContent() {
-    if (!indicatorsData) return;
+    const nav = document.getElementById('category-nav');
+    const content = document.getElementById('indicators-container');
+    let navHTML = '', contentHTML = '';
 
-    const navContainer = document.getElementById('category-nav');
-    const contentContainer = document.getElementById('indicators-container');
-
-    let navHTML = '';
-    let contentHTML = '';
-
-    Object.entries(indicatorsData).forEach(([key, category]) => {
-        const categoryId = `category-${key}`;
-        let itemCount = 0;
-        category.categories.forEach(sub => { itemCount += sub.items.length; });
-
-        navHTML += `
-            <a href="#${categoryId}" class="flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-primary-50 hover:text-primary-600 transition nav-category" data-category="${key}">
-                <span>${category.icon} ${category.name}</span>
-                <span class="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">${itemCount}</span>
-            </a>
-        `;
-
-        contentHTML += `
-            <section id="${categoryId}" class="scroll-mt-20 category-section" data-category="${key}">
-                <h2 class="text-xl sm:text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-                    <span>${category.icon}</span>
-                    <span>${category.name}</span>
-                </h2>
-        `;
-
-        category.categories.forEach(subcategory => {
-            contentHTML += `
-                <div class="mb-6">
-                    <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-2">
-                        <span class="w-8 h-px bg-gray-300"></span>
-                        ${subcategory.name}
-                    </h3>
-                    <div class="space-y-4">
-            `;
-            subcategory.items.forEach(indicator => {
-                contentHTML += renderIndicatorCard(indicator);
-            });
-            contentHTML += `</div></div>`;
+    Object.entries(indicatorsData).forEach(([key, cat]) => {
+        let count = cat.categories.reduce((sum, sub) => sum + sub.items.length, 0);
+        navHTML += `<a href="#category-${key}" class="flex justify-between px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-primary-50 nav-cat" data-cat="${key}"><span>${cat.icon} ${cat.name}</span><span class="text-xs bg-gray-100 px-1.5 rounded-full">${count}</span></a>`;
+        contentHTML += `<section id="category-${key}" class="category-section mb-8"><h2 class="text-xl font-bold mb-4">${cat.icon} ${cat.name}</h2>`;
+        cat.categories.forEach(sub => {
+            contentHTML += `<div class="mb-6"><h3 class="text-sm font-semibold text-gray-500 mb-3">${sub.name}</h3><div class="space-y-4">`;
+            sub.items.forEach(item => contentHTML += renderCard(item));
+            contentHTML += '</div></div>';
         });
-
-        contentHTML += `</section>`;
+        contentHTML += '</section>';
     });
 
-    navContainer.innerHTML = navHTML;
-    contentContainer.innerHTML = contentHTML;
-
+    nav.innerHTML = navHTML;
+    content.innerHTML = contentHTML;
     bindRelatedLinks();
     bindFavoriteButtons();
 }
 
-function renderIndicatorCard(indicator) {
-    const warningsHTML = indicator.warnings.map(w => `
-        <li class="flex items-start gap-2">
-            <span class="text-orange-500 mt-0.5 flex-shrink-0">⚠️</span>
-            <span>${w}</span>
-        </li>
-    `).join('');
+function renderCard(ind) {
+    const isFav = isFavorited(ind.id);
+    const warnings = (ind.warnings || []).map(w => `<li class="flex gap-2 text-sm"><span class="text-orange-500">⚠️</span><span>${w}</span></li>`).join('');
+    const related = ind.related && ind.related.length ? `<div class="mt-4 pt-4 border-t"><span class="text-xs text-gray-500">🔗 相关：</span>${ind.related.map(id => { const r = allIndicators.find(i => i.id === id); return r ? `<a href="#indicator-${id}" class="related-link inline-block ml-2 px-2 py-1 text-xs bg-primary-50 text-primary-600 rounded" data-target="${id}">${r.name}(${r.symbol})</a>` : ''; }).join('')}</div>` : '';
 
-    const relatedHTML = indicator.related && indicator.related.length > 0 ? `
-        <div class="mt-4 pt-4 border-t border-gray-100">
-            <span class="text-xs text-gray-500">🔗 相关指标：</span>
-            ${indicator.related.map(id => `
-                <a href="#indicator-${id}" class="inline-block ml-2 px-2 py-1 text-xs bg-primary-50 text-primary-600 rounded hover:bg-primary-100 transition related-link" data-target="${id}">
-                    ${getIndicatorName(id)}
-                </a>
-            `).join('')}
+    return `<div id="indicator-${ind.id}" class="indicator-card bg-white rounded-xl shadow-sm border p-5 card-hover" data-id="${ind.id}" data-search="${ind.name} ${ind.symbol} ${ind.meaning}">
+        <div class="flex justify-between items-start mb-4">
+            <div><h3 class="text-lg font-bold">${ind.name}</h3><span class="inline-block mt-1 px-2 py-0.5 text-xs font-mono bg-gray-100 rounded">${ind.symbol}</span></div>
+            <button class="fav-btn text-2xl ${isFav ? 'text-amber-400' : 'text-gray-300'}" data-id="${ind.id}">${isFav ? '★' : '☆'}</button>
         </div>
-    ` : '';
-
-    const isFav = isFavorited(indicator.id);
-
-    return `
-        <div id="indicator-${indicator.id}" class="indicator-card bg-white rounded-xl shadow-sm border border-gray-100 p-5 sm:p-6 card-hover" data-search-text="${indicator.name} ${indicator.symbol} ${indicator.meaning}" data-id="${indicator.id}">
-            <!-- 标题区 -->
-            <div class="flex items-start justify-between mb-4">
-                <div>
-                    <h3 class="text-lg sm:text-xl font-bold text-gray-800">${indicator.name}</h3>
-                    <span class="inline-block mt-1 px-2 py-0.5 text-xs font-mono bg-gray-100 text-gray-600 rounded">${indicator.symbol}</span>
-                </div>
-                <button class="fav-btn btn-press text-2xl leading-none transition-transform hover:scale-125 ${isFav ? 'text-amber-400' : 'text-gray-300 hover:text-amber-300'}" data-id="${indicator.id}" title="${isFav ? '取消收藏' : '收藏此指标'}">
-                    ${isFav ? '★' : '☆'}
-                </button>
-            </div>
-
-            <!-- 公式 -->
-            <div class="mb-4">
-                <div class="text-xs text-gray-500 mb-1">📐 计算公式</div>
-                <div class="bg-blue-50 border border-blue-100 rounded-lg p-3">
-                    <code class="text-sm text-blue-900 whitespace-pre-line">${escapeHtml(indicator.formula)}</code>
-                </div>
-            </div>
-
-            <!-- 含义 -->
-            <div class="mb-4">
-                <div class="text-xs text-gray-500 mb-1">💡 含义解释</div>
-                <p class="text-sm text-gray-700 leading-relaxed">${indicator.meaning}</p>
-            </div>
-
-            <!-- 参考区间 -->
-            <div class="mb-4">
-                <div class="text-xs text-gray-500 mb-2">📊 参考区间</div>
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                    <div class="bg-green-50 border border-green-100 rounded-lg p-2.5">
-                        <div class="text-xs text-green-600 font-medium mb-1">✅ 低估</div>
-                        <div class="text-xs text-gray-700">${indicator.reference.low}</div>
-                    </div>
-                    <div class="bg-yellow-50 border border-yellow-100 rounded-lg p-2.5">
-                        <div class="text-xs text-yellow-600 font-medium mb-1">⚖️ 合理</div>
-                        <div class="text-xs text-gray-700">${indicator.reference.mid}</div>
-                    </div>
-                    <div class="bg-red-50 border border-red-100 rounded-lg p-2.5">
-                        <div class="text-xs text-red-600 font-medium mb-1">🔴 高估</div>
-                        <div class="text-xs text-gray-700">${indicator.reference.high}</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 注意事项 -->
-            ${indicator.warnings && indicator.warnings.length > 0 ? `
-                <div class="mb-4">
-                    <div class="text-xs text-gray-500 mb-2">⚠️ 注意事项</div>
-                    <ul class="space-y-1.5 text-sm text-gray-700">
-                        ${warningsHTML}
-                    </ul>
-                </div>
-            ` : ''}
-
-            <!-- 实战示例 -->
-            ${indicator.example ? `
-                <div class="mb-2">
-                    <div class="text-xs text-gray-500 mb-1">🎯 实战示例</div>
-                    <div class="bg-purple-50 border border-purple-100 rounded-lg p-3">
-                        <p class="text-sm text-purple-900">${indicator.example}</p>
-                    </div>
-                </div>
-            ` : ''}
-
-            ${relatedHTML}
-        </div>
-    `;
+        <div class="mb-4"><div class="text-xs text-gray-500 mb-1">📐 公式</div><div class="bg-blue-50 rounded p-3"><code class="text-sm text-blue-900 whitespace-pre-line">${ind.formula}</code></div></div>
+        <div class="mb-4"><div class="text-xs text-gray-500 mb-1"> 含义</div><p class="text-sm">${ind.meaning}</p></div>
+        <div class="mb-4"><div class="text-xs text-gray-500 mb-2">📊 参考区间</div><div class="grid grid-cols-3 gap-2">
+            <div class="bg-green-50 rounded p-2"><div class="text-xs text-green-600 font-medium">✅ 低估</div><div class="text-xs">${ind.reference.low}</div></div>
+            <div class="bg-yellow-50 rounded p-2"><div class="text-xs text-yellow-600 font-medium">⚖️ 合理</div><div class="text-xs">${ind.reference.mid}</div></div>
+            <div class="bg-red-50 rounded p-2"><div class="text-xs text-red-600 font-medium"> 高估</div><div class="text-xs">${ind.reference.high}</div></div>
+        </div></div>
+        ${warnings ? `<div class="mb-4"><div class="text-xs text-gray-500 mb-2">️ 注意事项</div><ul class="space-y-1">${warnings}</ul></div>` : ''}
+        ${ind.example ? `<div class="mb-2"><div class="text-xs text-gray-500 mb-1"> 示例</div><div class="bg-purple-50 rounded p-3"><p class="text-sm text-purple-900">${ind.example}</p></div></div>` : ''}
+        ${related}
+    </div>`;
 }
 
-function escapeHtml(text) {
-    const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
-    return text.replace(/[&<>"']/g, m => map[m]);
-}
+function getIndicatorName(id) { const f = allIndicators.find(i => i.id === id); return f ? `${f.name}(${f.symbol})` : id; }
 
-function getIndicatorName(id) {
-    const found = allIndicators.find(i => i.id === id);
-    if (found) return `${found.name}(${found.symbol})`;
-    return id;
-}
-
-// ========== 事件绑定 ==========
 function bindRelatedLinks() {
     document.querySelectorAll('.related-link').forEach(link => {
         link.addEventListener('click', (e) => {
             e.preventDefault();
-            const targetId = link.getAttribute('data-target');
             if (isFavoritesView) exitFavoritesView();
             clearSearch();
-            const targetEl = document.getElementById(`indicator-${targetId}`);
-            if (targetEl) {
-                targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                targetEl.classList.add('ring-2', 'ring-primary-500');
-                setTimeout(() => targetEl.classList.remove('ring-2', 'ring-primary-500'), 2000);
+            const target = document.getElementById('indicator-' + link.dataset.target);
+            if (target) {
+                target.scrollIntoView({ behavior: 'smooth' });
+                target.classList.add('ring-2', 'ring-primary-500');
+                setTimeout(() => target.classList.remove('ring-2', 'ring-primary-500'), 2000);
             }
         });
     });
@@ -486,507 +292,293 @@ function bindRelatedLinks() {
 
 function bindFavoriteButtons() {
     document.querySelectorAll('.fav-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.preventDefault();
-            const id = btn.getAttribute('data-id');
+        btn.addEventListener('click', () => {
+            const id = btn.dataset.id;
             toggleFavorite(id);
-            // 更新按钮状态
             const nowFav = isFavorited(id);
             btn.textContent = nowFav ? '★' : '☆';
-            btn.title = nowFav ? '取消收藏' : '收藏此指标';
-            btn.classList.toggle('text-amber-400', nowFav);
-            btn.classList.toggle('text-gray-300', !nowFav);
-            btn.classList.toggle('hover:text-amber-300', !nowFav);
-            // 小动画
+            btn.className = `fav-btn text-2xl ${nowFav ? 'text-amber-400' : 'text-gray-300'}`;
             btn.style.transform = 'scale(1.3)';
             setTimeout(() => btn.style.transform = '', 200);
         });
     });
 }
 
-// ========== 搜索功能 ==========
+// ========== 搜索 ==========
 const searchInput = document.getElementById('search-input');
 const searchClear = document.getElementById('search-clear');
-const searchHint = document.getElementById('search-result-hint');
-const emptyState = document.getElementById('empty-state');
-const indicatorsContainer = document.getElementById('indicators-container');
-
-let searchTimeout = null;
+let searchTimeout;
 
 searchInput.addEventListener('input', () => {
     clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(() => {
-        performSearch(searchInput.value.trim());
-    }, 200);
+    searchTimeout = setTimeout(() => performSearch(searchInput.value.trim()), 200);
     searchClear.classList.toggle('hidden', !searchInput.value);
 });
 
-searchClear.addEventListener('click', () => {
-    clearSearch();
-    searchInput.focus();
-});
-
-document.addEventListener('keydown', (e) => {
-    if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-        e.preventDefault();
-        searchInput.focus();
-        searchInput.select();
-    }
-    if (e.key === 'Escape' && document.activeElement === searchInput) {
-        clearSearch();
-        searchInput.blur();
-    }
-});
+searchClear.addEventListener('click', () => { clearSearch(); searchInput.focus(); });
+document.addEventListener('keydown', (e) => { if ((e.ctrlKey || e.metaKey) && e.key === 'k') { e.preventDefault(); searchInput.focus(); } });
 
 function clearSearch() {
     searchInput.value = '';
     searchClear.classList.add('hidden');
-    searchHint.classList.add('hidden');
-    emptyState.classList.add('hidden');
-    indicatorsContainer.classList.remove('hidden');
-
-    document.querySelectorAll('.indicator-card').forEach(card => card.classList.remove('hidden'));
-    document.querySelectorAll('.category-section').forEach(section => section.classList.remove('hidden'));
-    document.querySelectorAll('.nav-category').forEach(nav => nav.classList.remove('opacity-40'));
-    document.querySelectorAll('.category-section > div.mb-6').forEach(div => div.classList.remove('hidden'));
+    document.getElementById('search-result-hint').classList.add('hidden');
+    document.querySelectorAll('.indicator-card').forEach(c => c.classList.remove('hidden'));
+    document.querySelectorAll('.category-section').forEach(s => s.classList.remove('hidden'));
 }
 
 function performSearch(query) {
-    if (!query) {
-        if (isFavoritesView) { filterFavoritesView(); }
-        else { clearSearch(); }
-        return;
-    }
-
-    // 退出收藏视图
+    if (!query) { clearSearch(); return; }
     if (isFavoritesView) exitFavoritesView();
-
-    const lowerQuery = query.toLowerCase();
-    let matchCount = 0;
-    const matchedCategories = new Set();
-
+    const q = query.toLowerCase();
+    let count = 0;
     document.querySelectorAll('.indicator-card').forEach(card => {
-        const searchText = (card.getAttribute('data-search-text') || '').toLowerCase();
-        const isMatch = searchText.includes(lowerQuery);
-        card.classList.toggle('hidden', !isMatch);
-        if (isMatch) {
-            matchCount++;
-            const section = card.closest('.category-section');
-            if (section) matchedCategories.add(section.getAttribute('data-category'));
-        }
+        const match = card.dataset.search.toLowerCase().includes(q);
+        card.classList.toggle('hidden', !match);
+        if (match) count++;
     });
-
-    document.querySelectorAll('.category-section').forEach(section => {
-        section.classList.toggle('hidden', !matchedCategories.has(section.getAttribute('data-category')));
-    });
-    document.querySelectorAll('.nav-category').forEach(nav => {
-        nav.classList.toggle('opacity-40', !matchedCategories.has(nav.getAttribute('data-category')));
-    });
-
-    searchHint.classList.remove('hidden');
-    if (matchCount === 0) {
-        searchHint.textContent = `未找到与"${query}"相关的指标`;
-        indicatorsContainer.classList.add('hidden');
-        emptyState.classList.remove('hidden');
-    } else {
-        searchHint.textContent = `找到 ${matchCount} 个匹配指标`;
-        indicatorsContainer.classList.remove('hidden');
-        emptyState.classList.add('hidden');
-    }
+    const hint = document.getElementById('search-result-hint');
+    hint.classList.remove('hidden');
+    hint.textContent = count > 0 ? `找到 ${count} 个指标` : `未找到"${query}"`;
 }
 
-// ========== 收藏视图切换 ==========
 document.getElementById('favorites-toggle').addEventListener('click', () => {
-    if (isFavoritesView) {
-        exitFavoritesView();
-    } else {
-        clearSearch();
-        enterFavoritesView();
-    }
+    if (isFavoritesView) exitFavoritesView(); else { clearSearch(); enterFavoritesView(); }
 });
 
 document.getElementById('favorites-nav').addEventListener('click', (e) => {
     e.preventDefault();
-    if (isFavoritesView) {
-        exitFavoritesView();
-    } else {
-        clearSearch();
-        enterFavoritesView();
-    }
+    if (isFavoritesView) exitFavoritesView(); else { clearSearch(); enterFavoritesView(); }
 });
 
 // ========== 关联图谱 ==========
-const categoryColors = {
-    'fundamental': '#3b82f6',  // blue
-    'technical': '#22c55e',    // green
-    'money_flow': '#f59e0b',   // amber
-    'industry': '#a855f7'      // purple
-};
+const categoryColors = { fundamental: '#3b82f6', technical: '#22c55e', money_flow: '#f59e0b', industry: '#a855f7' };
 
 let graphNodes = [];
 let graphEdges = [];
 let graphAnimFrame = null;
 let graphDragging = null;
-let graphHover = null;
 let graphSelected = null;
-let graphOffset = { x: 0, y: 0 };
 let graphScale = 1;
 let graphPan = { x: 0, y: 0 };
 let graphDraggingCanvas = false;
 let graphLastMouse = { x: 0, y: 0 };
 
-function initGraph() {
-    // 移动端节点尺寸稍小，避免在小屏幕太挤
-    const isMobile = window.innerWidth < 640;
-    const baseRadius = isMobile ? 14 : 18;
-    const radiusBonus = isMobile ? 8 : 12;
-    
-    // 创建节点
-    graphNodes = allIndicators.map(ind => ({
-        id: ind.id,
-        name: ind.name,
-        symbol: ind.symbol,
-        category: ind.categoryKey,
-        x: (Math.random() - 0.5) * 200,  // 缩小初始分布范围
-        y: (Math.random() - 0.5) * 200,
-        vx: 0,
-        vy: 0,
-        radius: baseRadius + Math.min(getConnections(ind.id).length * 2, radiusBonus)
-    }));
+function getConnections(id) { return graphEdges.filter(e => e.source === id || e.target === id); }
 
-    // 创建边（去重）
+function initGraph() {
+    graphNodes = [];
+    graphEdges = [];
+    
+    // 创建节点（圆形分布）
+    allIndicators.forEach((ind, i) => {
+        const angle = (i / allIndicators.length) * Math.PI * 2;
+        const radius = 100 + (i % 3) * 50;
+        graphNodes.push({
+            id: ind.id,
+            name: ind.name,
+            symbol: ind.symbol,
+            category: ind.categoryKey,
+            x: Math.cos(angle) * radius,
+            y: Math.sin(angle) * radius,
+            vx: 0, vy: 0,
+            radius: 18 + Math.min(getConnections(ind.id).length * 2, 12)
+        });
+    });
+
+    // 创建边
     const edgeSet = new Set();
     allIndicators.forEach(ind => {
         if (ind.related) {
             ind.related.forEach(rid => {
                 if (allIndicators.find(i => i.id === rid)) {
                     const key = [ind.id, rid].sort().join('-');
-                    if (!edgeSet.has(key)) {
-                        edgeSet.add(key);
-                        graphEdges.push({ source: ind.id, target: rid });
-                    }
+                    if (!edgeSet.has(key)) { edgeSet.add(key); graphEdges.push({ source: ind.id, target: rid }); }
                 }
             });
         }
     });
 }
 
-function getConnections(id) {
-    return graphEdges.filter(e => e.source === id || e.target === id);
-}
-
-function startGraphSimulation() {
+function startGraph() {
     const canvas = document.getElementById('graph-canvas');
-    const container = document.getElementById('graph-canvas-container');
     const ctx = canvas.getContext('2d');
-
-    function resize() {
-        const rect = container.getBoundingClientRect();
-        // 确保尺寸有效
-        if (rect.width === 0 || rect.height === 0) {
-            console.warn('Canvas 容器尺寸为 0，跳过 resize');
-            return;
-        }
-        canvas.width = rect.width * window.devicePixelRatio;
-        canvas.height = rect.height * window.devicePixelRatio;
-        canvas.style.width = rect.width + 'px';
-        canvas.style.height = rect.height + 'px';
-        ctx.setTransform(window.devicePixelRatio, 0, 0, window.devicePixelRatio, 0, 0);
-    }
-
-    // 初始 resize
-    resize();
     
-    // 使用 ResizeObserver 监听容器尺寸变化（比 window.resize 更可靠）
-    let resizeObserver = null;
-    if (window.ResizeObserver) {
-        resizeObserver = new ResizeObserver(() => {
-            resize();
-        });
-        resizeObserver.observe(container);
-    } else {
-        // 降级到 window resize
-        window.addEventListener('resize', resize);
+    // 设置 Canvas 尺寸
+    function resize() {
+        const container = document.getElementById('graph-canvas-container');
+        const w = container.clientWidth;
+        const h = container.clientHeight;
+        canvas.width = w * 2;
+        canvas.height = h * 2;
+        canvas.style.width = w + 'px';
+        canvas.style.height = h + 'px';
+        ctx.scale(2, 2);
     }
-
-    // 力导向模拟
+    
+    resize();
+    window.addEventListener('resize', resize);
+    
+    // 力导向
     function simulate() {
-        const alpha = 0.3;
-        const repulsion = 3000;
-        const attraction = 0.005;
-        const damping = 0.85;
-        const centerForce = 0.01;
-
-        // 斥力（节点之间）
-        for (let i = 0; i < graphNodes.length; i++) {
-            for (let j = i + 1; j < graphNodes.length; j++) {
-                const a = graphNodes[i];
-                const b = graphNodes[j];
-                let dx = a.x - b.x;
-                let dy = a.y - b.y;
-                let dist = Math.sqrt(dx * dx + dy * dy) || 1;
-                let force = repulsion / (dist * dist);
-                let fx = dx / dist * force;
-                let fy = dy / dist * force;
-                a.vx += fx * alpha;
-                a.vy += fy * alpha;
-                b.vx -= fx * alpha;
-                b.vy -= fy * alpha;
-            }
-        }
-
-        // 引力（边连接的节点之间）
+        graphNodes.forEach((a, i) => {
+            // 斥力
+            graphNodes.slice(i + 1).forEach(b => {
+                const dx = a.x - b.x, dy = a.y - b.y;
+                const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+                const force = 500 / (dist * dist);
+                a.vx += (dx / dist) * force * 0.1;
+                a.vy += (dy / dist) * force * 0.1;
+                b.vx -= (dx / dist) * force * 0.1;
+                b.vy -= (dy / dist) * force * 0.1;
+            });
+        });
+        
+        // 引力
         graphEdges.forEach(edge => {
             const a = graphNodes.find(n => n.id === edge.source);
             const b = graphNodes.find(n => n.id === edge.target);
             if (a && b) {
-                let dx = b.x - a.x;
-                let dy = b.y - a.y;
-                let dist = Math.sqrt(dx * dx + dy * dy) || 1;
-                let force = dist * attraction;
-                a.vx += dx * force;
-                a.vy += dy * force;
-                b.vx -= dx * force;
-                b.vy -= dy * force;
+                const dx = b.x - a.x, dy = b.y - a.y;
+                const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+                const force = dist * 0.01;
+                a.vx += dx * force; a.vy += dy * force;
+                b.vx -= dx * force; b.vy -= dy * force;
             }
         });
-
-        // 中心引力
+        
+        // 中心引力 + 更新
         graphNodes.forEach(node => {
-            node.vx -= node.x * centerForce;
-            node.vy -= node.y * centerForce;
-        });
-
-        // 更新位置
-        graphNodes.forEach(node => {
-            if (graphDragging === node) return;
-            node.vx *= damping;
-            node.vy *= damping;
-            node.x += node.vx;
-            node.y += node.vy;
+            if (node === graphDragging) return;
+            node.vx -= node.x * 0.02;
+            node.vy -= node.y * 0.02;
+            node.vx *= 0.9; node.vy *= 0.9;
+            node.x += node.vx; node.y += node.vy;
         });
     }
 
     function draw() {
-        const w = canvas.width / window.devicePixelRatio;
-        const h = canvas.height / window.devicePixelRatio;
+        const w = canvas.width / 2;
+        const h = canvas.height / 2;
         ctx.clearRect(0, 0, w, h);
-
+        
         ctx.save();
         ctx.translate(w / 2 + graphPan.x, h / 2 + graphPan.y);
         ctx.scale(graphScale, graphScale);
 
-        // 绘制边
+        // 边
         graphEdges.forEach(edge => {
             const a = graphNodes.find(n => n.id === edge.source);
             const b = graphNodes.find(n => n.id === edge.target);
             if (!a || !b) return;
-
-            const isHighlight = graphSelected && (edge.source === graphSelected.id || edge.target === graphSelected.id);
+            const highlight = graphSelected && (edge.source === graphSelected.id || edge.target === graphSelected.id);
             ctx.beginPath();
             ctx.moveTo(a.x, a.y);
             ctx.lineTo(b.x, b.y);
-            ctx.strokeStyle = isHighlight ? '#3b82f6' : 'rgba(200,200,200,0.4)';
-            ctx.lineWidth = isHighlight ? 2 : 1;
+            ctx.strokeStyle = highlight ? '#3b82f6' : 'rgba(200,200,200,0.5)';
+            ctx.lineWidth = highlight ? 2 : 1;
             ctx.stroke();
         });
 
-        // 绘制节点
+        // 节点
         graphNodes.forEach(node => {
-            const isSelected = graphSelected === node;
-            const isHover = graphHover === node;
-            const isConnected = graphSelected && graphEdges.some(e =>
-                (e.source === graphSelected.id && e.target === node.id) ||
-                (e.target === graphSelected.id && e.source === node.id)
-            );
-            const dimmed = graphSelected && !isSelected && !isConnected;
-
             const color = categoryColors[node.category] || '#6b7280';
             const r = node.radius;
-
-            // 光晕
-            if (isSelected || isHover) {
-                ctx.beginPath();
-                ctx.arc(node.x, node.y, r + 6, 0, Math.PI * 2);
-                ctx.fillStyle = color + '20';
-                ctx.fill();
-            }
-
-            // 节点圆
+            const dimmed = graphSelected && graphSelected !== node && !graphEdges.some(e => (e.source === graphSelected.id && e.target === node.id) || (e.target === graphSelected.id && e.source === node.id));
+            
             ctx.beginPath();
             ctx.arc(node.x, node.y, r, 0, Math.PI * 2);
             ctx.fillStyle = dimmed ? '#d1d5db' : color;
             ctx.globalAlpha = dimmed ? 0.4 : 1;
             ctx.fill();
-
-            // 白色边框
             ctx.strokeStyle = '#fff';
             ctx.lineWidth = 2;
             ctx.stroke();
-
-            // 符号文字
+            
             ctx.fillStyle = dimmed ? '#9ca3af' : '#fff';
-            ctx.font = `bold ${r > 22 ? 10 : 9}px system-ui, sans-serif`;
+            ctx.font = 'bold 9px system-ui';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            const label = node.symbol.length > 8 ? node.symbol.substring(0, 7) + '..' : node.symbol;
-            ctx.fillText(label, node.x, node.y);
-
+            ctx.fillText(node.symbol.substring(0, 7), node.x, node.y);
             ctx.globalAlpha = 1;
-
-            // 名称标签（下方）
-            if (isSelected || isHover || (graphSelected && isConnected)) {
+            
+            if (graphSelected === node || graphEdges.some(e => (e.source === graphSelected?.id && e.target === node.id) || (e.target === graphSelected?.id && e.source === node.id))) {
                 ctx.fillStyle = '#374151';
-                ctx.font = 'bold 11px system-ui, sans-serif';
-                ctx.fillText(node.name, node.x, node.y + r + 14);
+                ctx.font = 'bold 11px system-ui';
+                ctx.fillText(node.name, node.x, node.y + r + 12);
             }
         });
 
         ctx.restore();
-
         simulate();
         graphAnimFrame = requestAnimationFrame(draw);
     }
 
     draw();
 
-    // 鼠标交互
-    function getMousePos(e) {
+    // 交互
+    function getPos(e) {
         const rect = canvas.getBoundingClientRect();
-        const cw = canvas.width / window.devicePixelRatio;
-        const ch = canvas.height / window.devicePixelRatio;
+        const w = canvas.width / 2, h = canvas.height / 2;
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
         return {
-            x: (e.clientX - rect.left - cw / 2 - graphPan.x) / graphScale,
-            y: (e.clientY - rect.top - ch / 2 - graphPan.y) / graphScale
+            x: (clientX - rect.left - w / 2 - graphPan.x) / graphScale,
+            y: (clientY - rect.top - h / 2 - graphPan.y) / graphScale
         };
     }
 
     function findNode(pos) {
         for (let i = graphNodes.length - 1; i >= 0; i--) {
             const n = graphNodes[i];
-            const dx = pos.x - n.x;
-            const dy = pos.y - n.y;
+            const dx = pos.x - n.x, dy = pos.y - n.y;
             if (dx * dx + dy * dy < n.radius * n.radius) return n;
         }
         return null;
     }
 
-    function getCanvasSize() {
-        return { w: canvas.width / window.devicePixelRatio, h: canvas.height / window.devicePixelRatio };
+    function onDown(e) {
+        e.preventDefault();
+        const pos = getPos(e);
+        const node = findNode(pos);
+        if (node) { graphDragging = node; graphSelected = node; updateInfo(node); }
+        else { graphDraggingCanvas = true; graphLastMouse = { x: e.touches ? e.touches[0].clientX : e.clientX, y: e.touches ? e.touches[0].clientY : e.clientY }; }
     }
 
-    canvas.addEventListener('mousedown', (e) => {
-        const pos = getMousePos(e);
-        const node = findNode(pos);
-        if (node) {
-            graphDragging = node;
-            graphSelected = node;
-            updateGraphInfo(node);
-        } else {
-            graphDraggingCanvas = true;
-            graphLastMouse = { x: e.clientX, y: e.clientY };
-        }
-    });
-
-    canvas.addEventListener('mousemove', (e) => {
-        const pos = getMousePos(e);
+    function onMove(e) {
+        e.preventDefault();
         if (graphDragging) {
-            graphDragging.x = pos.x;
-            graphDragging.y = pos.y;
-            graphDragging.vx = 0;
-            graphDragging.vy = 0;
+            const pos = getPos(e);
+            graphDragging.x = pos.x; graphDragging.y = pos.y;
+            graphDragging.vx = 0; graphDragging.vy = 0;
         } else if (graphDraggingCanvas) {
-            graphPan.x += e.clientX - graphLastMouse.x;
-            graphPan.y += e.clientY - graphLastMouse.y;
-            graphLastMouse = { x: e.clientX, y: e.clientY };
-        } else {
-            graphHover = findNode(pos);
-            canvas.style.cursor = graphHover ? 'pointer' : 'grab';
+            const cx = e.touches ? e.touches[0].clientX : e.clientX;
+            const cy = e.touches ? e.touches[0].clientY : e.clientY;
+            graphPan.x += cx - graphLastMouse.x; graphPan.y += cy - graphLastMouse.y;
+            graphLastMouse = { x: cx, y: cy };
         }
-    });
+    }
 
-    canvas.addEventListener('mouseup', () => {
-        graphDragging = null;
-        graphDraggingCanvas = false;
-    });
+    function onUp() { graphDragging = null; graphDraggingCanvas = false; }
 
-    canvas.addEventListener('mouseleave', () => {
-        graphDragging = null;
-        graphHover = null;
-        graphDraggingCanvas = false;
-    });
+    canvas.addEventListener('mousedown', onDown);
+    canvas.addEventListener('mousemove', onMove);
+    canvas.addEventListener('mouseup', onUp);
+    canvas.addEventListener('mouseleave', onUp);
+    canvas.addEventListener('touchstart', onDown, { passive: false });
+    canvas.addEventListener('touchmove', onMove, { passive: false });
+    canvas.addEventListener('touchend', onUp);
+    canvas.addEventListener('wheel', (e) => { e.preventDefault(); graphScale = Math.max(0.3, Math.min(3, graphScale * (e.deltaY > 0 ? 0.9 : 1.1))); }, { passive: false });
 
-    canvas.addEventListener('wheel', (e) => {
-        e.preventDefault();
-        const delta = e.deltaY > 0 ? 0.9 : 1.1;
-        graphScale = Math.max(0.3, Math.min(3, graphScale * delta));
-    }, { passive: false });
-
-    // 触摸支持
-    canvas.addEventListener('touchstart', (e) => {
-        e.preventDefault();
-        const touch = e.touches[0];
-        const rect = canvas.getBoundingClientRect();
-        const { w, h } = getCanvasSize();
-        const pos = {
-            x: (touch.clientX - rect.left - w / 2 - graphPan.x) / graphScale,
-            y: (touch.clientY - rect.top - h / 2 - graphPan.y) / graphScale
-        };
-        const node = findNode(pos);
-        if (node) {
-            graphDragging = node;
-            graphSelected = node;
-            updateGraphInfo(node);
-        } else {
-            graphDraggingCanvas = true;
-            graphLastMouse = { x: touch.clientX, y: touch.clientY };
-        }
-    }, { passive: false });
-
-    canvas.addEventListener('touchmove', (e) => {
-        e.preventDefault();
-        const touch = e.touches[0];
-        const rect = canvas.getBoundingClientRect();
-        const { w, h } = getCanvasSize();
-        const pos = {
-            x: (touch.clientX - rect.left - w / 2 - graphPan.x) / graphScale,
-            y: (touch.clientY - rect.top - h / 2 - graphPan.y) / graphScale
-        };
-        if (graphDragging) {
-            graphDragging.x = pos.x;
-            graphDragging.y = pos.y;
-            graphDragging.vx = 0;
-            graphDragging.vy = 0;
-        } else if (graphDraggingCanvas) {
-            graphPan.x += touch.clientX - graphLastMouse.x;
-            graphPan.y += touch.clientY - graphLastMouse.y;
-            graphLastMouse = { x: touch.clientX, y: touch.clientY };
-        }
-    }, { passive: false });
-
-    canvas.addEventListener('touchend', () => {
-        graphDragging = null;
-        graphDraggingCanvas = false;
-    });
-
-    function updateGraphInfo(node) {
-        const infoEl = document.getElementById('graph-node-info');
-        const jumpBtn = document.getElementById('graph-jump');
+    function updateInfo(node) {
         const ind = allIndicators.find(i => i.id === node.id);
         if (ind) {
-            const connections = getConnections(node.id).length;
-            infoEl.innerHTML = `<strong>${ind.name}(${ind.symbol})</strong> · ${ind.categoryName} · ${connections} 个关联指标`;
-            jumpBtn.classList.remove('hidden');
-            jumpBtn.onclick = () => {
+            document.getElementById('graph-node-info').innerHTML = `<strong>${ind.name}(${ind.symbol})</strong> · ${ind.categoryName} · ${getConnections(node.id).length} 个关联`;
+            document.getElementById('graph-jump').classList.remove('hidden');
+            document.getElementById('graph-jump').onclick = () => {
                 closeGraph();
-                if (isFavoritesView) exitFavoritesView();
                 clearSearch();
-                const targetEl = document.getElementById(`indicator-${node.id}`);
-                if (targetEl) {
-                    targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    targetEl.classList.add('ring-2', 'ring-primary-500');
-                    setTimeout(() => targetEl.classList.remove('ring-2', 'ring-primary-500'), 2000);
-                }
+                const target = document.getElementById('indicator-' + node.id);
+                if (target) { target.scrollIntoView({ behavior: 'smooth' }); target.classList.add('ring-2', 'ring-primary-500'); setTimeout(() => target.classList.remove('ring-2', 'ring-primary-500'), 2000); }
             };
         }
     }
@@ -994,34 +586,21 @@ function startGraphSimulation() {
 
 function openGraph() {
     document.getElementById('graph-overlay').classList.remove('hidden');
-    document.body.style.overflow = 'hidden';
-    
-    // 延迟初始化，确保 DOM 完全渲染
-    setTimeout(() => {
-        if (!graphNodes.length) {
-            initGraph();
-        }
-        startGraphSimulation();
-    }, 100);
+    if (!graphNodes.length) { initGraph(); setTimeout(startGraph, 100); }
+    else startGraph();
 }
 
 function closeGraph() {
     document.getElementById('graph-overlay').classList.add('hidden');
-    document.body.style.overflow = '';
     document.getElementById('graph-jump').classList.add('hidden');
-    if (graphAnimFrame) {
-        cancelAnimationFrame(graphAnimFrame);
-        graphAnimFrame = null;
-    }
+    if (graphAnimFrame) { cancelAnimationFrame(graphAnimFrame); graphAnimFrame = null; }
 }
 
 document.getElementById('graph-toggle').addEventListener('click', openGraph);
 document.getElementById('graph-close').addEventListener('click', closeGraph);
-document.getElementById('graph-overlay').addEventListener('click', (e) => {
-    if (e.target === document.getElementById('graph-overlay')) closeGraph();
-});
+document.getElementById('graph-overlay').addEventListener('click', (e) => { if (e.target.id === 'graph-overlay') closeGraph(); });
 
-// ========== 初始化 ==========
+// 初始化
 document.addEventListener('DOMContentLoaded', loadIndicators);
 </script>
 {% endblock %}
