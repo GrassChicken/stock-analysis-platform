@@ -27,10 +27,12 @@ def create_app(config_class=None):
     from app.routes.main import main_bp
     from app.routes.api import api_bp
     from app.routes.analysis import analysis_bp
+    from app.routes.knowledge import knowledge_bp
 
     app.register_blueprint(main_bp)
     app.register_blueprint(api_bp, url_prefix="/api")
     app.register_blueprint(analysis_bp)
+    app.register_blueprint(knowledge_bp)
 
     # 创建数据库表
     with app.app_context():

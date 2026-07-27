@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="fade-in">
+    <!-- 页面标题 -->
+    <div class="mb-6 sm:mb-8">
+        <h1 class="text-2xl sm:text-3xl font-bold gradient-text mb-2">📖 股票指标百科</h1>
+        <p class="text-gray-600 text-sm sm:text-base">新手必读 · 快速掌握股票分析核心指标</p>
+    </div>
+
+    <!-- 主容器 -->
+    <div class="flex flex-col lg:flex-row gap-6">
+        <!-- 左侧分类导航 -->
+        <aside class="lg:w-64 flex-shrink-0">
+            <div class="bg-white rounded-xl shadow-sm p-4 lg:sticky lg:top-6">
+                <h3 class="font-bold text-gray-700 mb-3 text-sm">📑 指标分类</h3>
+                <nav id="category-nav" class="space-y-1">
+                    <!-- 动态生成分类导航 -->
+                </nav>
+            </div>
+        </aside>
+
+        <!-- 右侧内容区 -->
+        <main class="flex-1 min-w-0">
+            <div id="indicators-container" class="space-y-8">
+                <!-- 动态生成指标卡片 -->
+            </div>
+        </main>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let indicatorsData = null;
+
+// 加载指标数据
+async function loadIndicators() {
+    try {
+        const response = await fetch('/static/data/indicators.json');
+        indicatorsData = await response.json();
+        renderContent();
+    } catch (error) {
+        console.error('加载指标数据失败:', error);
+        document.getElementById('indicators-container').innerHTML = `
+            <div class="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+                <p class="text-red-600">加载失败，请刷新页面重试</p>
+            </div>
+        `;
+    }
+}
+
+// 渲染内容
+function renderContent() {
+    if (!indicatorsData) return;
+
+    const navContainer = document.getElementById('category-nav');
+    const contentContainer = document.getElementById('indicators-container');
+
+    let navHTML = '';
+    let contentHTML = '';
+
+    Object.entries(indicatorsData).forEach(([key, category]) => {
+        const categoryId = `category-${key}`;
+        
+        // 生成导航项
+        navHTML += `
+            <a href="#${categoryId}" class="block px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-primary-50 hover:text-primary-600 transition">
+                ${category.icon} ${category.name}
+            </a>
+        `;
+
+        // 生成内容区
+        contentHTML += `
+            <section id="${categoryId}" class="scroll-mt-20">
+                <h2 class="text-xl sm:text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                    <span>${category.icon}</span>
+                    <span>${category.name}</span>
+                </h2>
+        `;
+
+        category.categories.forEach(subcategory => {
+            subcategory.items.forEach(indicator => {
+                contentHTML += renderIndicatorCard(indicator);
+            });
+        });
+
+        contentHTML += `</section>`;
+    });
+
+    navContainer.innerHTML = navHTML;
+    contentContainer.innerHTML = contentHTML;
+
+    // 绑定相关指标点击事件
+    bindRelatedLinks();
+}
+
+// 渲染单个指标卡片
+function renderIndicatorCard(indicator) {
+    const warningsHTML = indicator.warnings.map(w => `
+        <li class="flex items-start gap-2">
+            <span class="text-orange-500 mt-0.5">⚠️</span>
+            <span>${w}</span>
+        </li>
+    `).join('');
+
+    const relatedHTML = indicator.related && indicator.related.length > 0 ? `
+        <div class="mt-4 pt-4 border-t border-gray-100">
+            <span class="text-xs text-gray-500">相关指标：</span>
+            ${indicator.related.map(id => `
+                <a href="#indicator-${id}" class="inline-block ml-2 px-2 py-1 text-xs bg-primary-50 text-primary-600 rounded hover:bg-primary-100 transition related-link" data-target="${id}">
+                    ${getIndicatorName(id)}
+                </a>
+            `).join('')}
+        </div>
+    ` : '';
+
+    return `
+        <div id="indicator-${indicator.id}" class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 sm:p-6 mb-4 card-hover scroll-mt-20">
+            <!-- 标题区 -->
+            <div class="flex items-start justify-between mb-4">
+                <div>
+                    <h3 class="text-lg sm:text-xl font-bold text-gray-800">${indicator.name}</h3>
+                    <span class="inline-block mt-1 px-2 py-0.5 text-xs font-mono bg-gray-100 text-gray-600 rounded">${indicator.symbol}</span>
+                </div>
+            </div>
+
+            <!-- 公式 -->
+            <div class="mb-4">
+                <div class="text-xs text-gray-500 mb-1">📐 计算公式</div>
+                <div class="bg-blue-50 border border-blue-100 rounded-lg p-3">
+                    <code class="text-sm text-blue-900 whitespace-pre-line">${indicator.formula}</code>
+                </div>
+            </div>
+
+            <!-- 含义 -->
+            <div class="mb-4">
+                <div class="text-xs text-gray-500 mb-1">💡 含义解释</div>
+                <p class="text-sm text-gray-700 leading-relaxed">${indicator.meaning}</p>
+            </div>
+
+            <!-- 参考区间 -->
+            <div class="mb-4">
+                <div class="text-xs text-gray-500 mb-2">📊 参考区间</div>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <div class="bg-green-50 border border-green-100 rounded-lg p-2.5">
+                        <div class="text-xs text-green-600 font-medium mb-1">✅ 低估</div>
+                        <div class="text-xs text-gray-700">${indicator.reference.low}</div>
+                    </div>
+                    <div class="bg-yellow-50 border border-yellow-100 rounded-lg p-2.5">
+                        <div class="text-xs text-yellow-600 font-medium mb-1">⚖️ 合理</div>
+                        <div class="text-xs text-gray-700">${indicator.reference.mid}</div>
+                    </div>
+                    <div class="bg-red-50 border border-red-100 rounded-lg p-2.5">
+                        <div class="text-xs text-red-600 font-medium mb-1">🔴 高估</div>
+                        <div class="text-xs text-gray-700">${indicator.reference.high}</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 注意事项 -->
+            ${indicator.warnings && indicator.warnings.length > 0 ? `
+                <div class="mb-4">
+                    <div class="text-xs text-gray-500 mb-2">⚠️ 注意事项</div>
+                    <ul class="space-y-1.5 text-sm text-gray-700">
+                        ${warningsHTML}
+                    </ul>
+                </div>
+            ` : ''}
+
+            <!-- 实战示例 -->
+            ${indicator.example ? `
+                <div class="mb-2">
+                    <div class="text-xs text-gray-500 mb-1">🎯 实战示例</div>
+                    <div class="bg-purple-50 border border-purple-100 rounded-lg p-3">
+                        <p class="text-sm text-purple-900">${indicator.example}</p>
+                    </div>
+                </div>
+            ` : ''}
+
+            ${relatedHTML}
+        </div>
+    `;
+}
+
+// 获取指标名称
+function getIndicatorName(id) {
+    if (!indicatorsData) return id;
+    
+    for (const category of Object.values(indicatorsData)) {
+        for (const subcategory of category.categories) {
+            for (const item of subcategory.items) {
+                if (item.id === id) {
+                    return `${item.name}(${item.symbol})`;
+                }
+            }
+        }
+    }
+    return id;
+}
+
+// 绑定相关指标点击事件
+function bindRelatedLinks() {
+    document.querySelectorAll('.related-link').forEach(link => {
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            const targetId = link.getAttribute('data-target');
+            const targetElement = document.getElementById(`indicator-${targetId}`);
+            if (targetElement) {
+                targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                // 高亮效果
+                targetElement.classList.add('ring-2', 'ring-primary-500');
+                setTimeout(() => {
+                    targetElement.classList.remove('ring-2', 'ring-primary-500');
+                }, 2000);
+            }
+        });
+    });
+}
+
+// 页面加载时初始化
+document.addEventListener('DOMContentLoaded', loadIndicators);
+</script>
+{% endblock %}
