@@ -9,6 +9,9 @@ from app.services.analysis.scorer import StockScorer
 from app.services.analysis.technical import TechnicalAnalyzer
 from app.services.analysis.capital import capital_analyzer
 from app.services.analysis.industry import industry_analyzer
+from app.utils.decorators import api_error_handler, validate_stock_code
+from app.utils.response import success_response, error_response
+from app.utils.exceptions import NotFoundError, ValidationError
 
 logger = logging.getLogger(__name__)
 api_bp = Blueprint("api", __name__)
@@ -17,63 +20,60 @@ api_bp = Blueprint("api", __name__)
 # ==================== 搜索 ====================
 
 @api_bp.route("/search")
+@api_error_handler
 def search():
     """搜索股票"""
     keyword = request.args.get('q', '').strip()
     
     if not keyword:
-        results = []
-    else:
-        try:
-            results = stock_service.search_stock(keyword)[:20]
-        except Exception as e:
-            logger.error(f"搜索异常: {e}")
-            if request.headers.get('HX-Request'):
-                return f'<div class="text-center py-4 text-red-500">搜索失败: {str(e)}</div>'
-            return jsonify({"results": [], "error": str(e)})
+        raise ValidationError("搜索关键词不能为空")
     
+    try:
+        results = stock_service.search_stock(keyword)[:20]
+    except Exception as e:
+        logger.error(f"搜索异常: {e}")
+        raise
+    
+    # HTMX 请求返回 HTML
     if request.headers.get('HX-Request'):
         return render_template('partials/search_results.html', results=results)
     
-    return jsonify({"results": results})
+    return success_response({"results": results})
 
 
 # ==================== 行情 ====================
 
 @api_bp.route("/stock/<code>/quote")
+@api_error_handler
 def get_quote(code: str):
     """实时行情"""
-    try:
-        quote = stock_service.get_quote(code)
-        if not quote:
-            return jsonify({"error": "未找到行情数据"}), 404
-        return jsonify(quote)
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    validate_stock_code(code)
+    quote = stock_service.get_quote(code)
+    if not quote:
+        raise NotFoundError("未找到行情数据", details={"code": code})
+    return success_response(quote)
 
 
 @api_bp.route("/stock/<code>/kline")
+@api_error_handler
 def get_kline(code: str):
     """K线数据"""
+    validate_stock_code(code)
     period = request.args.get('period', 'daily')
     count = int(request.args.get('count', 120))
-    try:
-        kline = stock_service.get_kline(code, period=period, count=count)
-        return jsonify({"code": code, "period": period, "data": kline})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    kline = stock_service.get_kline(code, period=period, count=count)
+    return success_response({"code": code, "period": period, "data": kline})
 
 
 @api_bp.route("/stock/<code>/daily_basic")
+@api_error_handler
 def get_daily_basic(code: str):
     """每日基本指标（PE/PB/市值等）"""
-    try:
-        data = stock_service.get_daily_basic(code)
-        if not data:
-            return jsonify({"error": "未找到指标数据"}), 404
-        return jsonify(data)
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    validate_stock_code(code)
+    data = stock_service.get_daily_basic(code)
+    if not data:
+        raise NotFoundError("未找到指标数据", details={"code": code})
+    return success_response(data)
 
 
 # ==================== 分析 ====================
@@ -81,8 +81,10 @@ def get_daily_basic(code: str):
 from app.extensions import cache as flask_cache
 
 @api_bp.route("/stock/<code>/score")
+@api_error_handler
 def get_score(code: str):
     """综合评分（缓存5分钟）"""
+    validate_stock_code(code)
     # 生成缓存键
     cache_key = f"score:{code}"
     
@@ -90,191 +92,179 @@ def get_score(code: str):
     cached_result = flask_cache.get(cache_key)
     if cached_result is not None:
         logger.info(f"评分缓存命中: {code}")
-        return jsonify(cached_result)
+        return success_response(cached_result)
     
     # 缓存未命中，执行计算
-    try:
-        scorer = StockScorer()
-        result = scorer.score(code)
-        
-        # 存入缓存（5分钟 = 300秒）
-        flask_cache.set(cache_key, result, timeout=600)
-        logger.info(f"评分结果已缓存: {code}")
-        
-        return jsonify(result)
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    scorer = StockScorer()
+    result = scorer.score(code)
+    
+    # 存入缓存（5分钟 = 300秒）
+    flask_cache.set(cache_key, result, timeout=600)
+    logger.info(f"评分结果已缓存: {code}")
+    
+    return success_response(result)
 
 
 @api_bp.route("/stock/<code>/fundamental")
+@api_error_handler
 def get_fundamental(code: str):
     """基本面分析（缓存1小时）"""
+    validate_stock_code(code)
     cache_key = f"fundamental:{code}"
     cached_result = flask_cache.get(cache_key)
     if cached_result is not None:
         logger.debug(f"基本面缓存命中: {code}")
-        return jsonify(cached_result)
+        return success_response(cached_result)
     
-    try:
-        analyzer = FundamentalAnalyzer()
-        result = analyzer.analyze(code)
-        flask_cache.set(cache_key, result, timeout=3600)
-        logger.debug(f"基本面结果已缓存: {code}")
-        return jsonify(result)
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    analyzer = FundamentalAnalyzer()
+    result = analyzer.analyze(code)
+    flask_cache.set(cache_key, result, timeout=3600)
+    logger.debug(f"基本面结果已缓存: {code}")
+    return success_response(result)
 
 
 @api_bp.route("/stock/<code>/valuation")
+@api_error_handler
 def get_valuation(code: str):
     """估值分析（缓存1小时）"""
+    validate_stock_code(code)
     cache_key = f"valuation:{code}"
     cached_result = flask_cache.get(cache_key)
     if cached_result is not None:
         logger.debug(f"估值缓存命中: {code}")
-        return jsonify(cached_result)
+        return success_response(cached_result)
     
-    try:
-        analyzer = ValuationAnalyzer()
-        result = analyzer.analyze(code)
-        flask_cache.set(cache_key, result, timeout=3600)
-        logger.debug(f"估值结果已缓存: {code}")
-        return jsonify(result)
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    analyzer = ValuationAnalyzer()
+    result = analyzer.analyze(code)
+    flask_cache.set(cache_key, result, timeout=3600)
+    logger.debug(f"估值结果已缓存: {code}")
+    return success_response(result)
 
 
 @api_bp.route("/stock/<code>/dupont")
+@api_error_handler
 def get_dupont(code: str):
     """杜邦分析（缓存1小时）"""
+    validate_stock_code(code)
     cache_key = f"dupont:{code}"
     cached_result = flask_cache.get(cache_key)
     if cached_result is not None:
         logger.debug(f"杜邦缓存命中: {code}")
-        return jsonify(cached_result)
+        return success_response(cached_result)
     
-    try:
-        analyzer = DupontAnalyzer()
-        result = analyzer.analyze(code)
-        flask_cache.set(cache_key, result, timeout=3600)
-        logger.debug(f"杜邦结果已缓存: {code}")
-        return jsonify(result)
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    analyzer = DupontAnalyzer()
+    result = analyzer.analyze(code)
+    flask_cache.set(cache_key, result, timeout=3600)
+    logger.debug(f"杜邦结果已缓存: {code}")
+    return success_response(result)
 
 
 @api_bp.route("/stock/<code>/technical")
+@api_error_handler
 def get_technical(code: str):
     """技术面分析（缓存1小时）"""
+    validate_stock_code(code)
     cache_key = f"technical:{code}"
     cached_result = flask_cache.get(cache_key)
     if cached_result is not None:
         logger.debug(f"技术面缓存命中: {code}")
-        return jsonify(cached_result)
+        return success_response(cached_result)
     
-    try:
-        analyzer = TechnicalAnalyzer()
-        result = analyzer.analyze(code)
-        flask_cache.set(cache_key, result, timeout=3600)
-        logger.debug(f"技术面结果已缓存: {code}")
-        return jsonify(result)
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    analyzer = TechnicalAnalyzer()
+    result = analyzer.analyze(code)
+    flask_cache.set(cache_key, result, timeout=3600)
+    logger.debug(f"技术面结果已缓存: {code}")
+    return success_response(result)
 
 
 @api_bp.route("/stock/<code>/capital")
+@api_error_handler
 def get_capital(code: str):
     """资金面分析（缓存1小时）"""
+    validate_stock_code(code)
     cache_key = f"capital:{code}"
     cached_result = flask_cache.get(cache_key)
     if cached_result is not None:
         logger.debug(f"资金面缓存命中: {code}")
-        return jsonify(cached_result)
+        return success_response(cached_result)
     
-    try:
-        result = capital_analyzer.analyze(code)
-        flask_cache.set(cache_key, result, timeout=3600)
-        logger.debug(f"资金面结果已缓存: {code}")
-        return jsonify(result)
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    result = capital_analyzer.analyze(code)
+    flask_cache.set(cache_key, result, timeout=3600)
+    logger.debug(f"资金面结果已缓存: {code}")
+    return success_response(result)
 
 
 @api_bp.route("/stock/<code>/industry")
+@api_error_handler
 def get_industry(code: str):
     """行业面分析（缓存1小时）"""
+    validate_stock_code(code)
     cache_key = f"industry:{code}"
     cached_result = flask_cache.get(cache_key)
     if cached_result is not None:
         logger.debug(f"行业面缓存命中: {code}")
-        return jsonify(cached_result)
+        return success_response(cached_result)
     
-    try:
-        result = industry_analyzer.analyze(code)
-        flask_cache.set(cache_key, result, timeout=3600)
-        logger.debug(f"行业面结果已缓存: {code}")
-        return jsonify(result)
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    result = industry_analyzer.analyze(code)
+    flask_cache.set(cache_key, result, timeout=3600)
+    logger.debug(f"行业面结果已缓存: {code}")
+    return success_response(result)
 
 
 @api_bp.route("/stock/<code>/ai")
+@api_error_handler
 def get_ai_analysis(code: str):
     """AI 智能分析（缓存1小时）"""
+    validate_stock_code(code)
     cache_key = f"ai:{code}"
     cached_result = flask_cache.get(cache_key)
     if cached_result is not None:
         logger.debug(f"AI分析缓存命中: {code}")
-        return jsonify(cached_result)
+        return success_response(cached_result)
     
-    try:
-        from app.services.analysis.ai_analyzer import AIAnalyzer
-        
-        # 检查 API Key 是否配置
-        import os
-        api_key = os.getenv('AI_API_KEY')
-        if not api_key:
-            return jsonify({
-                "error": "AI_API_KEY 未配置",
-                "message": "请在 .env 文件中配置 AI_API_KEY"
-            }), 500
-        
-        # 获取六维评分数据
-        scorer = StockScorer()
-        score_data = scorer.score(code)
-        
-        if 'error' in score_data:
-            return jsonify({"error": score_data['error']}), 500
-        
-        # 构建 AI 分析数据
-        ai_data = {
-            'code': code,
-            'total_score': score_data.get('total_score', 0),
-            'rating': score_data.get('rating', ''),
-            'breakdown': score_data.get('breakdown', {}),
-            'weights': score_data.get('weights', {}),
-            'fundamental': score_data.get('details', {}).get('fundamental', {}),
-            'valuation': score_data.get('details', {}).get('valuation', {}),
-            'technical': score_data.get('details', {}).get('technical', {}),
-            'capital': score_data.get('details', {}).get('capital', {}),
-            'industry': score_data.get('details', {}).get('industry', {})
-        }
-        
-        # 调用 AI 分析
-        analyzer = AIAnalyzer()
-        result = analyzer.analyze(ai_data)
-        
-        flask_cache.set(cache_key, result, timeout=3600)
-        logger.debug(f"AI分析结果已缓存: {code}")
-        
-        return jsonify(result)
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    from app.services.analysis.ai_analyzer import AIAnalyzer
+    
+    # 检查 API Key 是否配置
+    import os
+    api_key = os.getenv('AI_API_KEY')
+    if not api_key:
+        raise ValidationError("AI_API_KEY 未配置", details={"message": "请在 .env 文件中配置 AI_API_KEY"})
+    
+    # 获取六维评分数据
+    scorer = StockScorer()
+    score_data = scorer.score(code)
+    
+    if 'error' in score_data:
+        raise ValidationError("评分数据获取失败", details={"error": score_data['error']})
+    
+    # 构建 AI 分析数据
+    ai_data = {
+        'code': code,
+        'total_score': score_data.get('total_score', 0),
+        'rating': score_data.get('rating', ''),
+        'breakdown': score_data.get('breakdown', {}),
+        'weights': score_data.get('weights', {}),
+        'fundamental': score_data.get('details', {}).get('fundamental', {}),
+        'valuation': score_data.get('details', {}).get('valuation', {}),
+        'technical': score_data.get('details', {}).get('technical', {}),
+        'capital': score_data.get('details', {}).get('capital', {}),
+        'industry': score_data.get('details', {}).get('industry', {})
+    }
+    
+    # 调用 AI 分析
+    analyzer = AIAnalyzer()
+    result = analyzer.analyze(ai_data)
+    
+    flask_cache.set(cache_key, result, timeout=3600)
+    logger.debug(f"AI分析结果已缓存: {code}")
+    
+    return success_response(result)
 
 
 # ==================== 自选股 ====================
 
 @api_bp.route("/watchlist", methods=['GET'])
+@api_error_handler
 def get_watchlist():
     """获取自选股列表（带实时行情）"""
     from app.models.database import Watchlist
@@ -285,9 +275,10 @@ def get_watchlist():
         items = Watchlist.query.order_by(Watchlist.created_at.desc()).all()
         
         if not items:
+            # HTMX 请求返回 HTML
             if request.headers.get('HX-Request'):
                 return '<div class="text-center py-8"><p class="text-sm text-gray-400">暂无自选股</p><p class="text-xs text-gray-300 mt-1">搜索股票后点击 ⭐ 添加</p></div>'
-            return jsonify({"watchlist": []})
+            return success_response({"watchlist": []})
         
         # 获取实时行情
         watchlist_data = []
@@ -315,18 +306,21 @@ def get_watchlist():
                     'created_at': item.created_at.strftime('%Y-%m-%d %H:%M') if item.created_at else ''
                 })
         
+        # HTMX 请求返回 HTML
         if request.headers.get('HX-Request'):
             return render_template('partials/watchlist_items.html', items=watchlist_data)
         
-        return jsonify({"watchlist": watchlist_data})
+        return success_response({"watchlist": watchlist_data})
     except Exception as e:
         logger.error(f"获取自选股列表失败: {e}")
+        # HTMX 请求返回 HTML 错误
         if request.headers.get('HX-Request'):
             return f'<p class="text-sm text-red-500 text-center py-4">加载失败: {str(e)}</p>'
-        return jsonify({"error": str(e)}), 500
+        raise
 
 
 @api_bp.route("/watchlist", methods=['POST'])
+@api_error_handler
 def add_watchlist():
     """添加自选股"""
     from app.models.database import Watchlist
@@ -339,12 +333,12 @@ def add_watchlist():
         group_name = data.get('group', '默认')
         
         if not code:
-            return jsonify({"error": "股票代码不能为空"}), 400
+            raise ValidationError("股票代码不能为空")
         
         # 检查是否已存在
         existing = Watchlist.query.filter_by(code=code).first()
         if existing:
-            return jsonify({"message": "已在自选股中", "code": code}), 200
+            return success_response({"message": "已在自选股中", "code": code}, code=200)
         
         # 创建新记录
         item = Watchlist(code=code, name=name, group_name=group_name)
@@ -352,72 +346,81 @@ def add_watchlist():
         db.session.commit()
         
         logger.info(f"添加自选股: {code} {name}")
-        return jsonify({"message": "已添加自选股", "code": code, "name": name}), 201
+        return success_response({"message": "已添加自选股", "code": code, "name": name}, code=201)
     except Exception as e:
         db.session.rollback()
         logger.error(f"添加自选股失败: {e}")
-        return jsonify({"error": str(e)}), 500
+        raise
 
 
 @api_bp.route("/watchlist/<code>", methods=['DELETE'])
+@api_error_handler
 def remove_watchlist(code: str):
     """删除自选股"""
     from app.models.database import Watchlist
     from app.extensions import db
     
     try:
+        validate_stock_code(code)
         item = Watchlist.query.filter_by(code=code).first()
         if not item:
-            return jsonify({"error": "未找到该自选股"}), 404
+            raise NotFoundError("未找到该自选股", details={"code": code})
         
         db.session.delete(item)
         db.session.commit()
         
         logger.info(f"删除自选股: {code}")
-        return jsonify({"message": "已移除自选股", "code": code}), 200
+        return success_response({"message": "已移除自选股", "code": code})
     except Exception as e:
         db.session.rollback()
         logger.error(f"删除自选股失败: {e}")
-        return jsonify({"error": str(e)}), 500
+        raise
 
 
 # ==================== 对比 PK ====================
 
 @api_bp.route("/compare", methods=['POST'])
+@api_error_handler
 def compare_stocks():
     """股票对比 PK"""
-    try:
-        from app.services.analysis.compare import compare_service
-        data = request.get_json()
-        codes = data.get('codes', [])
+    from app.services.analysis.compare import compare_service
+    data = request.get_json()
+    codes = data.get('codes', [])
 
-        if not codes or len(codes) < 2:
-            return jsonify({"error": "至少选择 2 只股票"}), 400
+    if not codes or len(codes) < 2:
+        raise ValidationError("至少选择 2 只股票", details={"received_count": len(codes) if codes else 0})
 
-        result = compare_service.compare(codes)
-        return jsonify(result)
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    result = compare_service.compare(codes)
+    return success_response(result)
 
 
 
 # ==================== PDF 报告 ====================
 
 @api_bp.route('/stock/<code>/report', methods=['GET'])
+@api_error_handler
 def generate_report(code: str):
     """生成 PDF 分析报告"""
+    import os
+    from app.services.analysis.pdf_report import pdf_generator
+    from app.services.analysis.scorer import StockScorer
+    from app.services.data.stock_service import stock_service
+    
     try:
-        import os
-        from app.services.analysis.pdf_report import pdf_generator
-        from app.services.analysis.scorer import StockScorer
-        from app.services.data.stock_service import stock_service
+        validate_stock_code(code)
         
         # 获取所有分析数据
         scorer = StockScorer()
         score_data = scorer.score(code)
         
+        if 'error' in score_data:
+            raise NotFoundError(f"无法获取股票评分数据: {score_data['error']}", details={"code": code})
+        
         # 获取股票名称
         quote = stock_service.get_quote(code)
+        
+        if not quote:
+            raise NotFoundError(f"未找到股票数据: {code}", details={"code": code})
         
         # 构建完整数据
         details = score_data.get('details', {})
@@ -434,21 +437,32 @@ def generate_report(code: str):
         }
         
         filepath = pdf_generator.generate(report_data)
-        return jsonify({'success': True, 'filepath': filepath, 'filename': os.path.basename(filepath)})
+        return success_response({
+            'success': True, 
+            'filepath': filepath, 
+            'filename': os.path.basename(filepath)
+        })
     except Exception as e:
         logger.error(f"PDF 报告生成失败: {code}, {e}")
-        return jsonify({'error': str(e)}), 500
+        raise
 
 
 # ==================== PDF 下载 ====================
 
 @api_bp.route('/reports/<filename>', methods=['GET'])
+@api_error_handler
 def download_report(filename: str):
     """下载 PDF 报告"""
+    import os
+    from flask import send_from_directory
+    
     try:
-        from flask import send_from_directory
         reports_dir = '/root/.openclaw/workspace-fafaxia/projects/stock-analysis-platform/reports'
+        
+        if not os.path.exists(os.path.join(reports_dir, filename)):
+            raise NotFoundError(f"报告文件不存在: {filename}", details={"filename": filename})
+        
         return send_from_directory(reports_dir, filename, as_attachment=True)
     except Exception as e:
         logger.error(f"PDF 下载失败: {filename}, {e}")
-        return jsonify({'error': str(e)}), 500
+        raise
