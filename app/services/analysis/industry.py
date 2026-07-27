@@ -150,7 +150,28 @@ class IndustryAnalyzer:
             
             # 获取关键指标（PE、PB、市值）
             peer_data = []
-            for stock in peer_stocks[:10]:  # 限制到10只，减少API调用
+            current_stock = None
+            
+            # 先找到当前股票，确保它一定在对比列表中
+            for stock in peer_stocks:
+                if stock.get('code') == code:
+                    current_stock = stock
+                    break
+            
+            # 构建对比列表：当前股票 + 前9只其他股票
+            stocks_to_process = []
+            if current_stock:
+                stocks_to_process.append(current_stock)
+            
+            # 添加其他股票（排除当前股票，取前9只）
+            for stock in peer_stocks:
+                if stock.get('code') != code:
+                    stocks_to_process.append(stock)
+                    if len(stocks_to_process) >= 10:
+                        break
+            
+            # 获取这些股票的指标数据
+            for stock in stocks_to_process:
                 try:
                     ts_code = stock.get('ts_code', '')
                     if not ts_code:
