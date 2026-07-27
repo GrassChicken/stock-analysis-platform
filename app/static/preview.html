@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>指标百科预览 - 关联图谱修复</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50">
+    <div class="max-w-4xl mx-auto py-8 px-4">
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h1 class="text-3xl font-bold text-gray-800 mb-4">📊 指标百科 - 关联图谱修复预览</h1>
+            
+            <div class="space-y-4">
+                <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
+                    <h2 class="text-xl font-semibold text-blue-900 mb-2">✅ 修复完成</h2>
+                    <p class="text-blue-800">关联图谱已修复，现在支持 PC 端和移动端访问。</p>
+                </div>
+
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-3">🔗 访问入口</h3>
+                    <a href="/knowledge" class="inline-block bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-lg transition">
+                        打开指标百科页面 →
+                    </a>
+                    <p class="text-sm text-gray-600 mt-2">
+                        服务地址：<code class="bg-gray-200 px-2 py-1 rounded">http://127.0.0.1:5005/knowledge</code>
+                    </p>
+                </div>
+
+                <div class="bg-yellow-50 border-l-4 border-yellow-500 p-4 rounded">
+                    <h3 class="text-lg font-semibold text-yellow-900 mb-2">📱 移动端测试步骤</h3>
+                    <ol class="list-decimal list-inside space-y-2 text-yellow-800">
+                        <li>在手机浏览器访问指标百科页面</li>
+                        <li>点击顶部的"关联图谱"按钮</li>
+                        <li>验证图谱弹窗正常显示（应该有背景色）</li>
+                        <li>测试触摸交互：
+                            <ul class="list-disc list-inside ml-4 mt-1 text-sm">
+                                <li>单指拖动：移动节点</li>
+                                <li>双指捏合：缩放画布</li>
+                                <li>点击节点：查看详情</li>
+                            </ul>
+                        </li>
+                        <li>检查节点是否正确显示（蓝色圆点）</li>
+                        <li>验证连线正常绘制</li>
+                    </ol>
+                </div>
+
+                <div class="bg-green-50 border-l-4 border-green-500 p-4 rounded">
+                    <h3 class="text-lg font-semibold text-green-900 mb-2">🎯 修复内容</h3>
+                    <ul class="list-disc list-inside space-y-1 text-green-800">
+                        <li>优化移动端 Canvas 容器高度（min-height: 400px）</li>
+                        <li>Canvas 设置 touch-action: none 防止触摸冲突</li>
+                        <li>改进 resize 函数，使用 ResizeObserver 自动适配容器变化</li>
+                        <li>优化力导向参数，节点更分散</li>
+                        <li>增强触摸事件处理，支持拖动和缩放</li>
+                    </ul>
+                </div>
+
+                <div class="bg-purple-50 border-l-4 border-purple-500 p-4 rounded">
+                    <h3 class="text-lg font-semibold text-purple-900 mb-2">📋 技术细节</h3>
+                    <div class="text-purple-800 text-sm space-y-2">
+                        <p><strong>Canvas 容器：</strong></p>
+                        <pre class="bg-white p-2 rounded border text-xs overflow-x-auto">width: 100%; 
+flex: 1; 
+min-height: 400px; 
+position: relative; 
+overflow: hidden; 
+background: #fafafa;</pre>
+                        
+                        <p><strong>Canvas 元素：</strong></p>
+                        <pre class="bg-white p-2 rounded border text-xs overflow-x-auto">display: block; 
+touch-action: none;</pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="text-center text-gray-500 text-sm">
+            <p>服务运行于 http://127.0.0.1:5005</p>
+            <p class="mt-1">如需测试，请在手机浏览器中打开指标百科页面</p>
+        </div>
+    </div>
+</body>
+</html>

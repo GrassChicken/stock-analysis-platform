@@ -82,8 +82,9 @@
 </div>
 
 <!-- ========== 关联图谱弹窗 ========== -->
-<div id="graph-overlay" class="hidden fixed inset-0 z-50 bg-black bg-opacity-60 flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl h-[90vh] flex flex-col overflow-hidden">
+<div id="graph-overlay" class="hidden fixed inset-0 z-50 bg-black bg-opacity-60 flex items-center justify-center p-2 sm:p-4">
+    <div class="bg-white rounded-xl sm:rounded-2xl shadow-2xl w-full max-w-5xl flex flex-col overflow-hidden" style="height: min(85vh, 900px); max-height: 90vh;">
+        <!-- 使用 min() 和 max-height 确保在所有设备上都有合理的尺寸 -->
         <!-- 头部 -->
         <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
             <div>
@@ -102,8 +103,8 @@
             <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-purple-500 inline-block"></span> 行业面</span>
         </div>
         <!-- Canvas -->
-        <div class="flex-1 relative" id="graph-canvas-container">
-            <canvas id="graph-canvas" class="w-full h-full cursor-grab"></canvas>
+        <div id="graph-canvas-container" style="width: 100%; flex: 1; min-height: 400px; position: relative; overflow: hidden; background: #fafafa;">
+            <canvas id="graph-canvas" style="display: block; touch-action: none;" class="cursor-grab"></canvas>
         </div>
         <!-- 底部提示 -->
         <div class="px-6 py-3 border-t border-gray-100 bg-gray-50 flex items-center justify-between">
@@ -635,17 +636,22 @@ let graphDraggingCanvas = false;
 let graphLastMouse = { x: 0, y: 0 };
 
 function initGraph() {
+    // 移动端节点尺寸稍小，避免在小屏幕太挤
+    const isMobile = window.innerWidth < 640;
+    const baseRadius = isMobile ? 14 : 18;
+    const radiusBonus = isMobile ? 8 : 12;
+    
     // 创建节点
     graphNodes = allIndicators.map(ind => ({
         id: ind.id,
         name: ind.name,
         symbol: ind.symbol,
         category: ind.categoryKey,
-        x: (Math.random() - 0.5) * 400,
-        y: (Math.random() - 0.5) * 300,
+        x: (Math.random() - 0.5) * 200,  // 缩小初始分布范围
+        y: (Math.random() - 0.5) * 200,
         vx: 0,
         vy: 0,
-        radius: 18 + Math.min(getConnections(ind.id).length * 3, 12)
+        radius: baseRadius + Math.min(getConnections(ind.id).length * 2, radiusBonus)
     }));
 
     // 创建边（去重）
@@ -676,6 +682,11 @@ function startGraphSimulation() {
 
     function resize() {
         const rect = container.getBoundingClientRect();
+        // 确保尺寸有效
+        if (rect.width === 0 || rect.height === 0) {
+            console.warn('Canvas 容器尺寸为 0，跳过 resize');
+            return;
+        }
         canvas.width = rect.width * window.devicePixelRatio;
         canvas.height = rect.height * window.devicePixelRatio;
         canvas.style.width = rect.width + 'px';
@@ -683,8 +694,20 @@ function startGraphSimulation() {
         ctx.setTransform(window.devicePixelRatio, 0, 0, window.devicePixelRatio, 0, 0);
     }
 
+    // 初始 resize
     resize();
-    window.addEventListener('resize', resize);
+    
+    // 使用 ResizeObserver 监听容器尺寸变化（比 window.resize 更可靠）
+    let resizeObserver = null;
+    if (window.ResizeObserver) {
+        resizeObserver = new ResizeObserver(() => {
+            resize();
+        });
+        resizeObserver.observe(container);
+    } else {
+        // 降级到 window resize
+        window.addEventListener('resize', resize);
+    }
 
     // 力导向模拟
     function simulate() {
@@ -972,10 +995,14 @@ function startGraphSimulation() {
 function openGraph() {
     document.getElementById('graph-overlay').classList.remove('hidden');
     document.body.style.overflow = 'hidden';
-    if (!graphNodes.length) {
-        initGraph();
-    }
-    startGraphSimulation();
+    
+    // 延迟初始化，确保 DOM 完全渲染
+    setTimeout(() => {
+        if (!graphNodes.length) {
+            initGraph();
+        }
+        startGraphSimulation();
+    }, 100);
 }
 
 function closeGraph() {
