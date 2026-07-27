@@ -8,6 +8,22 @@
         <p class="text-gray-600 text-sm sm:text-base">新手必读 · 快速掌握股票分析核心指标</p>
     </div>
 
+    <!-- 搜索框 -->
+    <div class="mb-6">
+        <div class="relative max-w-xl">
+            <input id="search-input" type="text" placeholder="搜索指标名称、符号（如 PE、ROE、MACD...）"
+                   class="w-full pl-10 pr-10 py-3 rounded-xl border border-gray-200 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm sm:text-base"
+                   autocomplete="off" />
+            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+            </span>
+            <button id="search-clear" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 hidden">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+        <div id="search-result-hint" class="mt-2 text-sm text-gray-500 hidden"></div>
+    </div>
+
     <!-- 主容器 -->
     <div class="flex flex-col lg:flex-row gap-6">
         <!-- 左侧分类导航 -->
@@ -17,6 +33,9 @@
                 <nav id="category-nav" class="space-y-1">
                     <!-- 动态生成分类导航 -->
                 </nav>
+                <div class="mt-4 pt-4 border-t border-gray-100">
+                    <div class="text-xs text-gray-400">共收录 <span id="total-count" class="font-bold text-primary-600">0</span> 个指标</div>
+                </div>
             </div>
         </aside>
 
@@ -24,6 +43,11 @@
         <main class="flex-1 min-w-0">
             <div id="indicators-container" class="space-y-8">
                 <!-- 动态生成指标卡片 -->
+            </div>
+            <div id="empty-state" class="hidden text-center py-16">
+                <div class="text-6xl mb-4">🔍</div>
+                <p class="text-gray-500 text-lg">没有找到匹配的指标</p>
+                <p class="text-gray-400 text-sm mt-2">换个关键词试试？</p>
             </div>
         </main>
     </div>
@@ -33,13 +57,16 @@
 {% block extra_js %}
 <script>
 let indicatorsData = null;
+let allIndicators = []; // 扁平化的指标列表
 
 // 加载指标数据
 async function loadIndicators() {
     try {
         const response = await fetch('/static/data/indicators.json');
         indicatorsData = await response.json();
+        flattenIndicators();
         renderContent();
+        updateTotalCount();
     } catch (error) {
         console.error('加载指标数据失败:', error);
         document.getElementById('indicators-container').innerHTML = `
@@ -48,6 +75,29 @@ async function loadIndicators() {
             </div>
         `;
     }
+}
+
+// 扁平化指标列表（用于搜索）
+function flattenIndicators() {
+    allIndicators = [];
+    Object.entries(indicatorsData).forEach(([categoryKey, category]) => {
+        category.categories.forEach(subcategory => {
+            subcategory.items.forEach(indicator => {
+                allIndicators.push({
+                    ...indicator,
+                    categoryKey,
+                    categoryName: category.name,
+                    categoryIcon: category.icon,
+                    subcategoryName: subcategory.name
+                });
+            });
+        });
+    });
+}
+
+// 更新总数
+function updateTotalCount() {
+    document.getElementById('total-count').textContent = allIndicators.length;
 }
 
 // 渲染内容
@@ -62,17 +112,20 @@ function renderContent() {
 
     Object.entries(indicatorsData).forEach(([key, category]) => {
         const categoryId = `category-${key}`;
-        
+        let itemCount = 0;
+        category.categories.forEach(sub => { itemCount += sub.items.length; });
+
         // 生成导航项
         navHTML += `
-            <a href="#${categoryId}" class="block px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-primary-50 hover:text-primary-600 transition">
-                ${category.icon} ${category.name}
+            <a href="#${categoryId}" class="flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-primary-50 hover:text-primary-600 transition nav-category" data-category="${key}">
+                <span>${category.icon} ${category.name}</span>
+                <span class="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">${itemCount}</span>
             </a>
         `;
 
         // 生成内容区
         contentHTML += `
-            <section id="${categoryId}" class="scroll-mt-20">
+            <section id="${categoryId}" class="scroll-mt-20 category-section" data-category="${key}">
                 <h2 class="text-xl sm:text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2">
                     <span>${category.icon}</span>
                     <span>${category.name}</span>
@@ -80,9 +133,18 @@ function renderContent() {
         `;
 
         category.categories.forEach(subcategory => {
+            contentHTML += `
+                <div class="mb-6">
+                    <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-2">
+                        <span class="w-8 h-px bg-gray-300"></span>
+                        ${subcategory.name}
+                    </h3>
+                    <div class="space-y-4">
+            `;
             subcategory.items.forEach(indicator => {
                 contentHTML += renderIndicatorCard(indicator);
             });
+            contentHTML += `</div></div>`;
         });
 
         contentHTML += `</section>`;
@@ -91,7 +153,6 @@ function renderContent() {
     navContainer.innerHTML = navHTML;
     contentContainer.innerHTML = contentHTML;
 
-    // 绑定相关指标点击事件
     bindRelatedLinks();
 }
 
@@ -99,14 +160,14 @@ function renderContent() {
 function renderIndicatorCard(indicator) {
     const warningsHTML = indicator.warnings.map(w => `
         <li class="flex items-start gap-2">
-            <span class="text-orange-500 mt-0.5">⚠️</span>
+            <span class="text-orange-500 mt-0.5 flex-shrink-0">⚠️</span>
             <span>${w}</span>
         </li>
     `).join('');
 
     const relatedHTML = indicator.related && indicator.related.length > 0 ? `
         <div class="mt-4 pt-4 border-t border-gray-100">
-            <span class="text-xs text-gray-500">相关指标：</span>
+            <span class="text-xs text-gray-500">🔗 相关指标：</span>
             ${indicator.related.map(id => `
                 <a href="#indicator-${id}" class="inline-block ml-2 px-2 py-1 text-xs bg-primary-50 text-primary-600 rounded hover:bg-primary-100 transition related-link" data-target="${id}">
                     ${getIndicatorName(id)}
@@ -116,7 +177,7 @@ function renderIndicatorCard(indicator) {
     ` : '';
 
     return `
-        <div id="indicator-${indicator.id}" class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 sm:p-6 mb-4 card-hover scroll-mt-20">
+        <div id="indicator-${indicator.id}" class="indicator-card bg-white rounded-xl shadow-sm border border-gray-100 p-5 sm:p-6 card-hover" data-search-text="${indicator.name} ${indicator.symbol} ${indicator.meaning}">
             <!-- 标题区 -->
             <div class="flex items-start justify-between mb-4">
                 <div>
@@ -129,7 +190,7 @@ function renderIndicatorCard(indicator) {
             <div class="mb-4">
                 <div class="text-xs text-gray-500 mb-1">📐 计算公式</div>
                 <div class="bg-blue-50 border border-blue-100 rounded-lg p-3">
-                    <code class="text-sm text-blue-900 whitespace-pre-line">${indicator.formula}</code>
+                    <code class="text-sm text-blue-900 whitespace-pre-line">${escapeHtml(indicator.formula)}</code>
                 </div>
             </div>
 
@@ -183,19 +244,16 @@ function renderIndicatorCard(indicator) {
     `;
 }
 
+// HTML 转义
+function escapeHtml(text) {
+    const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+    return text.replace(/[&<>"']/g, m => map[m]);
+}
+
 // 获取指标名称
 function getIndicatorName(id) {
-    if (!indicatorsData) return id;
-    
-    for (const category of Object.values(indicatorsData)) {
-        for (const subcategory of category.categories) {
-            for (const item of subcategory.items) {
-                if (item.id === id) {
-                    return `${item.name}(${item.symbol})`;
-                }
-            }
-        }
-    }
+    const found = allIndicators.find(i => i.id === id);
+    if (found) return `${found.name}(${found.symbol})`;
     return id;
 }
 
@@ -207,8 +265,9 @@ function bindRelatedLinks() {
             const targetId = link.getAttribute('data-target');
             const targetElement = document.getElementById(`indicator-${targetId}`);
             if (targetElement) {
+                // 先清除搜索状态，确保目标卡片可见
+                clearSearch();
                 targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                // 高亮效果
                 targetElement.classList.add('ring-2', 'ring-primary-500');
                 setTimeout(() => {
                     targetElement.classList.remove('ring-2', 'ring-primary-500');
@@ -216,6 +275,120 @@ function bindRelatedLinks() {
             }
         });
     });
+}
+
+// ========== 搜索功能 ==========
+
+const searchInput = document.getElementById('search-input');
+const searchClear = document.getElementById('search-clear');
+const searchHint = document.getElementById('search-result-hint');
+const emptyState = document.getElementById('empty-state');
+const indicatorsContainer = document.getElementById('indicators-container');
+
+let searchTimeout = null;
+
+searchInput.addEventListener('input', () => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+        performSearch(searchInput.value.trim());
+    }, 200);
+
+    // 显示/隐藏清除按钮
+    searchClear.classList.toggle('hidden', !searchInput.value);
+});
+
+searchClear.addEventListener('click', () => {
+    clearSearch();
+    searchInput.focus();
+});
+
+// 键盘快捷键：Ctrl/Cmd+K 聚焦搜索
+document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        searchInput.focus();
+        searchInput.select();
+    }
+    // ESC 清除搜索
+    if (e.key === 'Escape' && document.activeElement === searchInput) {
+        clearSearch();
+        searchInput.blur();
+    }
+});
+
+function clearSearch() {
+    searchInput.value = '';
+    searchClear.classList.add('hidden');
+    searchHint.classList.add('hidden');
+    emptyState.classList.add('hidden');
+    indicatorsContainer.classList.remove('hidden');
+
+    // 显示所有卡片和分类
+    document.querySelectorAll('.indicator-card').forEach(card => {
+        card.classList.remove('hidden');
+    });
+    document.querySelectorAll('.category-section').forEach(section => {
+        section.classList.remove('hidden');
+    });
+    document.querySelectorAll('.nav-category').forEach(nav => {
+        nav.classList.remove('opacity-40');
+    });
+    // 显示所有子分类标题
+    document.querySelectorAll('.category-section > div').forEach(div => {
+        div.classList.remove('hidden');
+    });
+}
+
+function performSearch(query) {
+    if (!query) {
+        clearSearch();
+        return;
+    }
+
+    const lowerQuery = query.toLowerCase();
+    let matchCount = 0;
+    const matchedCategories = new Set();
+
+    // 搜索每个指标卡片
+    document.querySelectorAll('.indicator-card').forEach(card => {
+        const searchText = (card.getAttribute('data-search-text') || '').toLowerCase();
+        const isMatch = searchText.includes(lowerQuery);
+
+        card.classList.toggle('hidden', !isMatch);
+        if (isMatch) {
+            matchCount++;
+            // 找到所属的 category section
+            const section = card.closest('.category-section');
+            if (section) {
+                matchedCategories.add(section.getAttribute('data-category'));
+            }
+        }
+    });
+
+    // 隐藏没有匹配指标的分类
+    document.querySelectorAll('.category-section').forEach(section => {
+        const categoryKey = section.getAttribute('data-category');
+        const hasMatch = matchedCategories.has(categoryKey);
+        section.classList.toggle('hidden', !hasMatch);
+    });
+
+    // 导航栏中弱化不匹配的分类
+    document.querySelectorAll('.nav-category').forEach(nav => {
+        const categoryKey = nav.getAttribute('data-category');
+        nav.classList.toggle('opacity-40', !matchedCategories.has(categoryKey));
+    });
+
+    // 显示搜索结果提示
+    searchHint.classList.remove('hidden');
+    if (matchCount === 0) {
+        searchHint.textContent = `未找到与"${query}"相关的指标`;
+        indicatorsContainer.classList.add('hidden');
+        emptyState.classList.remove('hidden');
+    } else {
+        searchHint.textContent = `找到 ${matchCount} 个匹配指标`;
+        indicatorsContainer.classList.remove('hidden');
+        emptyState.classList.add('hidden');
+    }
 }
 
 // 页面加载时初始化
