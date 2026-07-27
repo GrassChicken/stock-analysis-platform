@@ -42,3 +42,8 @@ htmlcov/
 log/
 service.log
 .pid
+
+# PDF 报告
+reports/*.pdf
+# 生成的 PDF 报告
+reports/
