@@ -166,6 +166,31 @@ class StockReportPDF:
         logger.info(f"✓ PDF 报告已生成：{filepath}")
         return filepath
     
+    def generate_with_filename(self, data: Dict[str, Any], target_filepath: str) -> str:
+        """生成 PDF 报告到指定文件路径（用于缓存）"""
+        self._reset_pdf()
+        
+        code = data.get('code', '')
+        name = data.get('name', code)
+        
+        self.pdf.add_page()
+        self._render_header(name, code, data)
+        self._render_score(data)
+        self._render_fundamental(data)
+        self._render_valuation(data)
+        self._render_technical(data)
+        self._render_dupont(data)
+        self._render_capital(data)
+        self._render_industry(data)
+        self._render_footer()
+        
+        # 确保目录存在
+        os.makedirs(os.path.dirname(target_filepath), exist_ok=True)
+        self.pdf.output(target_filepath)
+        
+        logger.info(f"✓ PDF 报告已生成：{target_filepath}")
+        return target_filepath
+    
     def _render_header(self, name, code, data):
         """报告头部"""
         # 顶部色块

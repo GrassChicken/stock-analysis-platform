@@ -400,8 +400,9 @@ def compare_stocks():
 @api_bp.route('/stock/<code>/report', methods=['GET'])
 @api_error_handler
 def generate_report(code: str):
-    """生成 PDF 分析报告"""
+    """生成 PDF 分析报告（缓存1天）"""
     import os
+    from datetime import datetime
     from app.services.analysis.pdf_report import pdf_generator
     from app.services.analysis.scorer import StockScorer
     from app.services.data.stock_service import stock_service
@@ -409,14 +410,29 @@ def generate_report(code: str):
     try:
         validate_stock_code(code)
         
-        # 获取所有分析数据
+        # 检查是否已有今日报告（缓存）
+        reports_dir = '/root/.openclaw/workspace-fafaxia/projects/stock-analysis-platform/reports'
+        today = datetime.now().strftime('%Y%m%d')
+        cached_filename = f'report_{code}_{today}.pdf'
+        cached_filepath = os.path.join(reports_dir, cached_filename)
+        
+        # 如果缓存存在，直接返回
+        if os.path.exists(cached_filepath):
+            logger.info(f"✓ PDF 报告缓存命中: {cached_filename}")
+            return success_response({
+                'success': True, 
+                'filepath': cached_filepath, 
+                'filename': cached_filename,
+                'cached': True
+            })
+        
+        # 缓存未命中，生成新报告
         scorer = StockScorer()
         score_data = scorer.score(code)
         
         if 'error' in score_data:
             raise NotFoundError(f"无法获取股票评分数据: {score_data['error']}", details={"code": code})
         
-        # 获取股票名称
         quote = stock_service.get_quote(code)
         
         if not quote:
@@ -436,11 +452,16 @@ def generate_report(code: str):
             'industry': details.get('industry', {}),
         }
         
-        filepath = pdf_generator.generate(report_data)
+        # 生成报告（使用带日期的文件名）
+        os.makedirs(reports_dir, exist_ok=True)
+        filepath = pdf_generator.generate_with_filename(report_data, cached_filepath)
+        
+        logger.info(f"✓ PDF 报告已生成并缓存: {cached_filename}")
         return success_response({
             'success': True, 
             'filepath': filepath, 
-            'filename': os.path.basename(filepath)
+            'filename': cached_filename,
+            'cached': False
         })
     except Exception as e:
         logger.error(f"PDF 报告生成失败: {code}, {e}")
