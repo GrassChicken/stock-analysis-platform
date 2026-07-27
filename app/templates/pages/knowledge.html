@@ -4,8 +4,16 @@
 <div class="fade-in">
     <!-- 页面标题 -->
     <div class="mb-6 sm:mb-8">
-        <h1 class="text-2xl sm:text-3xl font-bold gradient-text mb-2">📖 股票指标百科</h1>
-        <p class="text-gray-600 text-sm sm:text-base">新手必读 · 快速掌握股票分析核心指标</p>
+        <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+            <div>
+                <h1 class="text-2xl sm:text-3xl font-bold gradient-text mb-1">📖 股票指标百科</h1>
+                <p class="text-gray-600 text-sm">新手必读 · 快速掌握股票分析核心指标</p>
+            </div>
+            <button id="graph-toggle" class="btn-press self-start sm:self-auto px-4 py-2 bg-gradient-to-r from-primary-600 to-primary-700 text-white text-sm font-medium rounded-lg shadow hover:shadow-md transition flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                关联图谱
+            </button>
+        </div>
     </div>
 
     <!-- 搜索框 -->
@@ -29,12 +37,27 @@
         <!-- 左侧分类导航 -->
         <aside class="lg:w-64 flex-shrink-0">
             <div class="bg-white rounded-xl shadow-sm p-4 lg:sticky lg:top-6">
+                <!-- 我的收藏 -->
+                <div id="favorites-section" class="mb-4 hidden">
+                    <a href="#" id="favorites-nav" class="flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium text-amber-600 bg-amber-50 hover:bg-amber-100 transition nav-category" data-category="__favorites__">
+                        <span>⭐ 我的收藏</span>
+                        <span id="favorites-count" class="text-xs bg-amber-200 text-amber-700 px-1.5 py-0.5 rounded-full">0</span>
+                    </a>
+                    <div class="mt-1 ml-3 space-y-0.5" id="favorites-list">
+                        <!-- 动态生成收藏列表 -->
+                    </div>
+                </div>
+
                 <h3 class="font-bold text-gray-700 mb-3 text-sm">📑 指标分类</h3>
                 <nav id="category-nav" class="space-y-1">
                     <!-- 动态生成分类导航 -->
                 </nav>
-                <div class="mt-4 pt-4 border-t border-gray-100">
-                    <div class="text-xs text-gray-400">共收录 <span id="total-count" class="font-bold text-primary-600">0</span> 个指标</div>
+                <div class="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between">
+                    <div class="text-xs text-gray-400">共 <span id="total-count" class="font-bold text-primary-600">0</span> 个指标</div>
+                    <button id="favorites-toggle" class="text-xs text-gray-400 hover:text-amber-500 transition flex items-center gap-1" title="切换收藏视图">
+                        <span>⭐</span>
+                        <span id="favorites-toggle-text">显示收藏</span>
+                    </button>
                 </div>
             </div>
         </aside>
@@ -49,24 +72,210 @@
                 <p class="text-gray-500 text-lg">没有找到匹配的指标</p>
                 <p class="text-gray-400 text-sm mt-2">换个关键词试试？</p>
             </div>
+            <div id="favorites-empty" class="hidden text-center py-16">
+                <div class="text-6xl mb-4">⭐</div>
+                <p class="text-gray-500 text-lg">还没有收藏指标</p>
+                <p class="text-gray-400 text-sm mt-2">点击指标卡片右上角的 ⭐ 收藏常用指标</p>
+            </div>
         </main>
+    </div>
+</div>
+
+<!-- ========== 关联图谱弹窗 ========== -->
+<div id="graph-overlay" class="hidden fixed inset-0 z-50 bg-black bg-opacity-60 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl h-[90vh] flex flex-col overflow-hidden">
+        <!-- 头部 -->
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+            <div>
+                <h2 class="text-lg font-bold text-gray-800">🔗 指标关联图谱</h2>
+                <p class="text-xs text-gray-500 mt-0.5">点击节点查看详情 · 拖拽节点调整位置 · 滚轮缩放</p>
+            </div>
+            <button id="graph-close" class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+        <!-- 图例 -->
+        <div class="px-6 py-2 flex items-center gap-4 text-xs border-b border-gray-50">
+            <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-blue-500 inline-block"></span> 基本面</span>
+            <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-green-500 inline-block"></span> 技术面</span>
+            <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-amber-500 inline-block"></span> 资金面</span>
+            <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-purple-500 inline-block"></span> 行业面</span>
+        </div>
+        <!-- Canvas -->
+        <div class="flex-1 relative" id="graph-canvas-container">
+            <canvas id="graph-canvas" class="w-full h-full cursor-grab"></canvas>
+        </div>
+        <!-- 底部提示 -->
+        <div class="px-6 py-3 border-t border-gray-100 bg-gray-50 flex items-center justify-between">
+            <div id="graph-node-info" class="text-sm text-gray-500">点击节点查看指标详情</div>
+            <button id="graph-jump" class="hidden px-3 py-1.5 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition">
+                查看指标详情 →
+            </button>
+        </div>
     </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
+// ========== 全局状态 ==========
 let indicatorsData = null;
-let allIndicators = []; // 扁平化的指标列表
+let allIndicators = [];
+let favorites = new Set();
+let isFavoritesView = false;
 
-// 加载指标数据
+const FAVORITES_KEY = 'knowledge_favorites';
+
+// ========== 收藏功能 ==========
+function loadFavorites() {
+    try {
+        const stored = localStorage.getItem(FAVORITES_KEY);
+        if (stored) {
+            favorites = new Set(JSON.parse(stored));
+        }
+    } catch (e) {
+        console.warn('加载收藏失败:', e);
+    }
+}
+
+function saveFavorites() {
+    try {
+        localStorage.setItem(FAVORITES_KEY, JSON.stringify([...favorites]));
+    } catch (e) {
+        console.warn('保存收藏失败:', e);
+    }
+}
+
+function toggleFavorite(id) {
+    if (favorites.has(id)) {
+        favorites.delete(id);
+    } else {
+        favorites.add(id);
+    }
+    saveFavorites();
+    updateFavoritesUI();
+    // 如果在收藏视图中，更新显示
+    if (isFavoritesView) {
+        filterFavoritesView();
+    }
+}
+
+function isFavorited(id) {
+    return favorites.has(id);
+}
+
+function updateFavoritesUI() {
+    const section = document.getElementById('favorites-section');
+    const countEl = document.getElementById('favorites-count');
+    const listEl = document.getElementById('favorites-list');
+    const toggleText = document.getElementById('favorites-toggle-text');
+
+    if (favorites.size > 0) {
+        section.classList.remove('hidden');
+        countEl.textContent = favorites.size;
+
+        // 生成收藏列表
+        let listHTML = '';
+        favorites.forEach(id => {
+            const ind = allIndicators.find(i => i.id === id);
+            if (ind) {
+                listHTML += `
+                    <a href="#indicator-${id}" class="fav-nav-link block px-3 py-1.5 rounded text-xs text-gray-600 hover:bg-amber-50 hover:text-amber-600 transition truncate" data-target="${id}">
+                        ${ind.symbol} ${ind.name}
+                    </a>
+                `;
+            }
+        });
+        listEl.innerHTML = listHTML;
+
+        // 绑定收藏导航点击
+        listEl.querySelectorAll('.fav-nav-link').forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const targetId = link.getAttribute('data-target');
+                if (isFavoritesView) {
+                    exitFavoritesView();
+                }
+                clearSearch();
+                const targetEl = document.getElementById(`indicator-${targetId}`);
+                if (targetEl) {
+                    targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    targetEl.classList.add('ring-2', 'ring-amber-400');
+                    setTimeout(() => {
+                        targetEl.classList.remove('ring-2', 'ring-amber-400');
+                    }, 2000);
+                }
+            });
+        });
+    } else {
+        section.classList.add('hidden');
+        if (isFavoritesView) {
+            exitFavoritesView();
+        }
+    }
+}
+
+function enterFavoritesView() {
+    isFavoritesView = true;
+    document.getElementById('favorites-toggle-text').textContent = '显示全部';
+    document.getElementById('favorites-nav').classList.add('ring-1', 'ring-amber-300');
+    filterFavoritesView();
+}
+
+function exitFavoritesView() {
+    isFavoritesView = false;
+    document.getElementById('favorites-toggle-text').textContent = '显示收藏';
+    document.getElementById('favorites-nav').classList.remove('ring-1', 'ring-amber-300');
+    // 显示所有
+    document.querySelectorAll('.indicator-card').forEach(card => card.classList.remove('hidden'));
+    document.querySelectorAll('.category-section').forEach(section => section.classList.remove('hidden'));
+    document.querySelectorAll('.nav-category').forEach(nav => nav.classList.remove('opacity-40'));
+    document.querySelectorAll('.category-section > div.mb-6').forEach(div => div.classList.remove('hidden'));
+    document.getElementById('favorites-empty').classList.add('hidden');
+    document.getElementById('indicators-container').classList.remove('hidden');
+}
+
+function filterFavoritesView() {
+    document.getElementById('indicators-container').classList.remove('hidden');
+    document.getElementById('favorites-empty').classList.add('hidden');
+
+    let favCount = 0;
+    const matchedCategories = new Set();
+
+    document.querySelectorAll('.indicator-card').forEach(card => {
+        const indicatorId = card.id.replace('indicator-', '');
+        const isFav = favorites.has(indicatorId);
+        card.classList.toggle('hidden', !isFav);
+        if (isFav) {
+            favCount++;
+            const section = card.closest('.category-section');
+            if (section) matchedCategories.add(section.getAttribute('data-category'));
+        }
+    });
+
+    document.querySelectorAll('.category-section').forEach(section => {
+        section.classList.toggle('hidden', !matchedCategories.has(section.getAttribute('data-category')));
+    });
+    document.querySelectorAll('.nav-category:not(#favorites-nav)').forEach(nav => {
+        nav.classList.toggle('opacity-40', !matchedCategories.has(nav.getAttribute('data-category')));
+    });
+
+    if (favCount === 0) {
+        document.getElementById('indicators-container').classList.add('hidden');
+        document.getElementById('favorites-empty').classList.remove('hidden');
+    }
+}
+
+// ========== 数据加载 ==========
 async function loadIndicators() {
+    loadFavorites();
     try {
         const response = await fetch('/static/data/indicators.json');
         indicatorsData = await response.json();
         flattenIndicators();
         renderContent();
         updateTotalCount();
+        updateFavoritesUI();
     } catch (error) {
         console.error('加载指标数据失败:', error);
         document.getElementById('indicators-container').innerHTML = `
@@ -77,7 +286,6 @@ async function loadIndicators() {
     }
 }
 
-// 扁平化指标列表（用于搜索）
 function flattenIndicators() {
     allIndicators = [];
     Object.entries(indicatorsData).forEach(([categoryKey, category]) => {
@@ -95,12 +303,11 @@ function flattenIndicators() {
     });
 }
 
-// 更新总数
 function updateTotalCount() {
     document.getElementById('total-count').textContent = allIndicators.length;
 }
 
-// 渲染内容
+// ========== 渲染 ==========
 function renderContent() {
     if (!indicatorsData) return;
 
@@ -115,7 +322,6 @@ function renderContent() {
         let itemCount = 0;
         category.categories.forEach(sub => { itemCount += sub.items.length; });
 
-        // 生成导航项
         navHTML += `
             <a href="#${categoryId}" class="flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-primary-50 hover:text-primary-600 transition nav-category" data-category="${key}">
                 <span>${category.icon} ${category.name}</span>
@@ -123,7 +329,6 @@ function renderContent() {
             </a>
         `;
 
-        // 生成内容区
         contentHTML += `
             <section id="${categoryId}" class="scroll-mt-20 category-section" data-category="${key}">
                 <h2 class="text-xl sm:text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2">
@@ -154,9 +359,9 @@ function renderContent() {
     contentContainer.innerHTML = contentHTML;
 
     bindRelatedLinks();
+    bindFavoriteButtons();
 }
 
-// 渲染单个指标卡片
 function renderIndicatorCard(indicator) {
     const warningsHTML = indicator.warnings.map(w => `
         <li class="flex items-start gap-2">
@@ -176,14 +381,19 @@ function renderIndicatorCard(indicator) {
         </div>
     ` : '';
 
+    const isFav = isFavorited(indicator.id);
+
     return `
-        <div id="indicator-${indicator.id}" class="indicator-card bg-white rounded-xl shadow-sm border border-gray-100 p-5 sm:p-6 card-hover" data-search-text="${indicator.name} ${indicator.symbol} ${indicator.meaning}">
+        <div id="indicator-${indicator.id}" class="indicator-card bg-white rounded-xl shadow-sm border border-gray-100 p-5 sm:p-6 card-hover" data-search-text="${indicator.name} ${indicator.symbol} ${indicator.meaning}" data-id="${indicator.id}">
             <!-- 标题区 -->
             <div class="flex items-start justify-between mb-4">
                 <div>
                     <h3 class="text-lg sm:text-xl font-bold text-gray-800">${indicator.name}</h3>
                     <span class="inline-block mt-1 px-2 py-0.5 text-xs font-mono bg-gray-100 text-gray-600 rounded">${indicator.symbol}</span>
                 </div>
+                <button class="fav-btn btn-press text-2xl leading-none transition-transform hover:scale-125 ${isFav ? 'text-amber-400' : 'text-gray-300 hover:text-amber-300'}" data-id="${indicator.id}" title="${isFav ? '取消收藏' : '收藏此指标'}">
+                    ${isFav ? '★' : '☆'}
+                </button>
             </div>
 
             <!-- 公式 -->
@@ -244,41 +454,56 @@ function renderIndicatorCard(indicator) {
     `;
 }
 
-// HTML 转义
 function escapeHtml(text) {
     const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
     return text.replace(/[&<>"']/g, m => map[m]);
 }
 
-// 获取指标名称
 function getIndicatorName(id) {
     const found = allIndicators.find(i => i.id === id);
     if (found) return `${found.name}(${found.symbol})`;
     return id;
 }
 
-// 绑定相关指标点击事件
+// ========== 事件绑定 ==========
 function bindRelatedLinks() {
     document.querySelectorAll('.related-link').forEach(link => {
         link.addEventListener('click', (e) => {
             e.preventDefault();
             const targetId = link.getAttribute('data-target');
-            const targetElement = document.getElementById(`indicator-${targetId}`);
-            if (targetElement) {
-                // 先清除搜索状态，确保目标卡片可见
-                clearSearch();
-                targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                targetElement.classList.add('ring-2', 'ring-primary-500');
-                setTimeout(() => {
-                    targetElement.classList.remove('ring-2', 'ring-primary-500');
-                }, 2000);
+            if (isFavoritesView) exitFavoritesView();
+            clearSearch();
+            const targetEl = document.getElementById(`indicator-${targetId}`);
+            if (targetEl) {
+                targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                targetEl.classList.add('ring-2', 'ring-primary-500');
+                setTimeout(() => targetEl.classList.remove('ring-2', 'ring-primary-500'), 2000);
             }
         });
     });
 }
 
-// ========== 搜索功能 ==========
+function bindFavoriteButtons() {
+    document.querySelectorAll('.fav-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const id = btn.getAttribute('data-id');
+            toggleFavorite(id);
+            // 更新按钮状态
+            const nowFav = isFavorited(id);
+            btn.textContent = nowFav ? '★' : '☆';
+            btn.title = nowFav ? '取消收藏' : '收藏此指标';
+            btn.classList.toggle('text-amber-400', nowFav);
+            btn.classList.toggle('text-gray-300', !nowFav);
+            btn.classList.toggle('hover:text-amber-300', !nowFav);
+            // 小动画
+            btn.style.transform = 'scale(1.3)';
+            setTimeout(() => btn.style.transform = '', 200);
+        });
+    });
+}
 
+// ========== 搜索功能 ==========
 const searchInput = document.getElementById('search-input');
 const searchClear = document.getElementById('search-clear');
 const searchHint = document.getElementById('search-result-hint');
@@ -292,8 +517,6 @@ searchInput.addEventListener('input', () => {
     searchTimeout = setTimeout(() => {
         performSearch(searchInput.value.trim());
     }, 200);
-
-    // 显示/隐藏清除按钮
     searchClear.classList.toggle('hidden', !searchInput.value);
 });
 
@@ -302,14 +525,12 @@ searchClear.addEventListener('click', () => {
     searchInput.focus();
 });
 
-// 键盘快捷键：Ctrl/Cmd+K 聚焦搜索
 document.addEventListener('keydown', (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
         e.preventDefault();
         searchInput.focus();
         searchInput.select();
     }
-    // ESC 清除搜索
     if (e.key === 'Escape' && document.activeElement === searchInput) {
         clearSearch();
         searchInput.blur();
@@ -323,62 +544,44 @@ function clearSearch() {
     emptyState.classList.add('hidden');
     indicatorsContainer.classList.remove('hidden');
 
-    // 显示所有卡片和分类
-    document.querySelectorAll('.indicator-card').forEach(card => {
-        card.classList.remove('hidden');
-    });
-    document.querySelectorAll('.category-section').forEach(section => {
-        section.classList.remove('hidden');
-    });
-    document.querySelectorAll('.nav-category').forEach(nav => {
-        nav.classList.remove('opacity-40');
-    });
-    // 显示所有子分类标题
-    document.querySelectorAll('.category-section > div').forEach(div => {
-        div.classList.remove('hidden');
-    });
+    document.querySelectorAll('.indicator-card').forEach(card => card.classList.remove('hidden'));
+    document.querySelectorAll('.category-section').forEach(section => section.classList.remove('hidden'));
+    document.querySelectorAll('.nav-category').forEach(nav => nav.classList.remove('opacity-40'));
+    document.querySelectorAll('.category-section > div.mb-6').forEach(div => div.classList.remove('hidden'));
 }
 
 function performSearch(query) {
     if (!query) {
-        clearSearch();
+        if (isFavoritesView) { filterFavoritesView(); }
+        else { clearSearch(); }
         return;
     }
+
+    // 退出收藏视图
+    if (isFavoritesView) exitFavoritesView();
 
     const lowerQuery = query.toLowerCase();
     let matchCount = 0;
     const matchedCategories = new Set();
 
-    // 搜索每个指标卡片
     document.querySelectorAll('.indicator-card').forEach(card => {
         const searchText = (card.getAttribute('data-search-text') || '').toLowerCase();
         const isMatch = searchText.includes(lowerQuery);
-
         card.classList.toggle('hidden', !isMatch);
         if (isMatch) {
             matchCount++;
-            // 找到所属的 category section
             const section = card.closest('.category-section');
-            if (section) {
-                matchedCategories.add(section.getAttribute('data-category'));
-            }
+            if (section) matchedCategories.add(section.getAttribute('data-category'));
         }
     });
 
-    // 隐藏没有匹配指标的分类
     document.querySelectorAll('.category-section').forEach(section => {
-        const categoryKey = section.getAttribute('data-category');
-        const hasMatch = matchedCategories.has(categoryKey);
-        section.classList.toggle('hidden', !hasMatch);
+        section.classList.toggle('hidden', !matchedCategories.has(section.getAttribute('data-category')));
     });
-
-    // 导航栏中弱化不匹配的分类
     document.querySelectorAll('.nav-category').forEach(nav => {
-        const categoryKey = nav.getAttribute('data-category');
-        nav.classList.toggle('opacity-40', !matchedCategories.has(categoryKey));
+        nav.classList.toggle('opacity-40', !matchedCategories.has(nav.getAttribute('data-category')));
     });
 
-    // 显示搜索结果提示
     searchHint.classList.remove('hidden');
     if (matchCount === 0) {
         searchHint.textContent = `未找到与"${query}"相关的指标`;
@@ -391,7 +594,407 @@ function performSearch(query) {
     }
 }
 
-// 页面加载时初始化
+// ========== 收藏视图切换 ==========
+document.getElementById('favorites-toggle').addEventListener('click', () => {
+    if (isFavoritesView) {
+        exitFavoritesView();
+    } else {
+        clearSearch();
+        enterFavoritesView();
+    }
+});
+
+document.getElementById('favorites-nav').addEventListener('click', (e) => {
+    e.preventDefault();
+    if (isFavoritesView) {
+        exitFavoritesView();
+    } else {
+        clearSearch();
+        enterFavoritesView();
+    }
+});
+
+// ========== 关联图谱 ==========
+const categoryColors = {
+    'fundamental': '#3b82f6',  // blue
+    'technical': '#22c55e',    // green
+    'money_flow': '#f59e0b',   // amber
+    'industry': '#a855f7'      // purple
+};
+
+let graphNodes = [];
+let graphEdges = [];
+let graphAnimFrame = null;
+let graphDragging = null;
+let graphHover = null;
+let graphSelected = null;
+let graphOffset = { x: 0, y: 0 };
+let graphScale = 1;
+let graphPan = { x: 0, y: 0 };
+let graphDraggingCanvas = false;
+let graphLastMouse = { x: 0, y: 0 };
+
+function initGraph() {
+    // 创建节点
+    graphNodes = allIndicators.map(ind => ({
+        id: ind.id,
+        name: ind.name,
+        symbol: ind.symbol,
+        category: ind.categoryKey,
+        x: (Math.random() - 0.5) * 400,
+        y: (Math.random() - 0.5) * 300,
+        vx: 0,
+        vy: 0,
+        radius: 18 + Math.min(getConnections(ind.id).length * 3, 12)
+    }));
+
+    // 创建边（去重）
+    const edgeSet = new Set();
+    allIndicators.forEach(ind => {
+        if (ind.related) {
+            ind.related.forEach(rid => {
+                if (allIndicators.find(i => i.id === rid)) {
+                    const key = [ind.id, rid].sort().join('-');
+                    if (!edgeSet.has(key)) {
+                        edgeSet.add(key);
+                        graphEdges.push({ source: ind.id, target: rid });
+                    }
+                }
+            });
+        }
+    });
+}
+
+function getConnections(id) {
+    return graphEdges.filter(e => e.source === id || e.target === id);
+}
+
+function startGraphSimulation() {
+    const canvas = document.getElementById('graph-canvas');
+    const container = document.getElementById('graph-canvas-container');
+    const ctx = canvas.getContext('2d');
+
+    function resize() {
+        const rect = container.getBoundingClientRect();
+        canvas.width = rect.width * window.devicePixelRatio;
+        canvas.height = rect.height * window.devicePixelRatio;
+        canvas.style.width = rect.width + 'px';
+        canvas.style.height = rect.height + 'px';
+        ctx.setTransform(window.devicePixelRatio, 0, 0, window.devicePixelRatio, 0, 0);
+    }
+
+    resize();
+    window.addEventListener('resize', resize);
+
+    // 力导向模拟
+    function simulate() {
+        const alpha = 0.3;
+        const repulsion = 3000;
+        const attraction = 0.005;
+        const damping = 0.85;
+        const centerForce = 0.01;
+
+        // 斥力（节点之间）
+        for (let i = 0; i < graphNodes.length; i++) {
+            for (let j = i + 1; j < graphNodes.length; j++) {
+                const a = graphNodes[i];
+                const b = graphNodes[j];
+                let dx = a.x - b.x;
+                let dy = a.y - b.y;
+                let dist = Math.sqrt(dx * dx + dy * dy) || 1;
+                let force = repulsion / (dist * dist);
+                let fx = dx / dist * force;
+                let fy = dy / dist * force;
+                a.vx += fx * alpha;
+                a.vy += fy * alpha;
+                b.vx -= fx * alpha;
+                b.vy -= fy * alpha;
+            }
+        }
+
+        // 引力（边连接的节点之间）
+        graphEdges.forEach(edge => {
+            const a = graphNodes.find(n => n.id === edge.source);
+            const b = graphNodes.find(n => n.id === edge.target);
+            if (a && b) {
+                let dx = b.x - a.x;
+                let dy = b.y - a.y;
+                let dist = Math.sqrt(dx * dx + dy * dy) || 1;
+                let force = dist * attraction;
+                a.vx += dx * force;
+                a.vy += dy * force;
+                b.vx -= dx * force;
+                b.vy -= dy * force;
+            }
+        });
+
+        // 中心引力
+        graphNodes.forEach(node => {
+            node.vx -= node.x * centerForce;
+            node.vy -= node.y * centerForce;
+        });
+
+        // 更新位置
+        graphNodes.forEach(node => {
+            if (graphDragging === node) return;
+            node.vx *= damping;
+            node.vy *= damping;
+            node.x += node.vx;
+            node.y += node.vy;
+        });
+    }
+
+    function draw() {
+        const w = canvas.width / window.devicePixelRatio;
+        const h = canvas.height / window.devicePixelRatio;
+        ctx.clearRect(0, 0, w, h);
+
+        ctx.save();
+        ctx.translate(w / 2 + graphPan.x, h / 2 + graphPan.y);
+        ctx.scale(graphScale, graphScale);
+
+        // 绘制边
+        graphEdges.forEach(edge => {
+            const a = graphNodes.find(n => n.id === edge.source);
+            const b = graphNodes.find(n => n.id === edge.target);
+            if (!a || !b) return;
+
+            const isHighlight = graphSelected && (edge.source === graphSelected.id || edge.target === graphSelected.id);
+            ctx.beginPath();
+            ctx.moveTo(a.x, a.y);
+            ctx.lineTo(b.x, b.y);
+            ctx.strokeStyle = isHighlight ? '#3b82f6' : 'rgba(200,200,200,0.4)';
+            ctx.lineWidth = isHighlight ? 2 : 1;
+            ctx.stroke();
+        });
+
+        // 绘制节点
+        graphNodes.forEach(node => {
+            const isSelected = graphSelected === node;
+            const isHover = graphHover === node;
+            const isConnected = graphSelected && graphEdges.some(e =>
+                (e.source === graphSelected.id && e.target === node.id) ||
+                (e.target === graphSelected.id && e.source === node.id)
+            );
+            const dimmed = graphSelected && !isSelected && !isConnected;
+
+            const color = categoryColors[node.category] || '#6b7280';
+            const r = node.radius;
+
+            // 光晕
+            if (isSelected || isHover) {
+                ctx.beginPath();
+                ctx.arc(node.x, node.y, r + 6, 0, Math.PI * 2);
+                ctx.fillStyle = color + '20';
+                ctx.fill();
+            }
+
+            // 节点圆
+            ctx.beginPath();
+            ctx.arc(node.x, node.y, r, 0, Math.PI * 2);
+            ctx.fillStyle = dimmed ? '#d1d5db' : color;
+            ctx.globalAlpha = dimmed ? 0.4 : 1;
+            ctx.fill();
+
+            // 白色边框
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // 符号文字
+            ctx.fillStyle = dimmed ? '#9ca3af' : '#fff';
+            ctx.font = `bold ${r > 22 ? 10 : 9}px system-ui, sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            const label = node.symbol.length > 8 ? node.symbol.substring(0, 7) + '..' : node.symbol;
+            ctx.fillText(label, node.x, node.y);
+
+            ctx.globalAlpha = 1;
+
+            // 名称标签（下方）
+            if (isSelected || isHover || (graphSelected && isConnected)) {
+                ctx.fillStyle = '#374151';
+                ctx.font = 'bold 11px system-ui, sans-serif';
+                ctx.fillText(node.name, node.x, node.y + r + 14);
+            }
+        });
+
+        ctx.restore();
+
+        simulate();
+        graphAnimFrame = requestAnimationFrame(draw);
+    }
+
+    draw();
+
+    // 鼠标交互
+    function getMousePos(e) {
+        const rect = canvas.getBoundingClientRect();
+        const cw = canvas.width / window.devicePixelRatio;
+        const ch = canvas.height / window.devicePixelRatio;
+        return {
+            x: (e.clientX - rect.left - cw / 2 - graphPan.x) / graphScale,
+            y: (e.clientY - rect.top - ch / 2 - graphPan.y) / graphScale
+        };
+    }
+
+    function findNode(pos) {
+        for (let i = graphNodes.length - 1; i >= 0; i--) {
+            const n = graphNodes[i];
+            const dx = pos.x - n.x;
+            const dy = pos.y - n.y;
+            if (dx * dx + dy * dy < n.radius * n.radius) return n;
+        }
+        return null;
+    }
+
+    function getCanvasSize() {
+        return { w: canvas.width / window.devicePixelRatio, h: canvas.height / window.devicePixelRatio };
+    }
+
+    canvas.addEventListener('mousedown', (e) => {
+        const pos = getMousePos(e);
+        const node = findNode(pos);
+        if (node) {
+            graphDragging = node;
+            graphSelected = node;
+            updateGraphInfo(node);
+        } else {
+            graphDraggingCanvas = true;
+            graphLastMouse = { x: e.clientX, y: e.clientY };
+        }
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+        const pos = getMousePos(e);
+        if (graphDragging) {
+            graphDragging.x = pos.x;
+            graphDragging.y = pos.y;
+            graphDragging.vx = 0;
+            graphDragging.vy = 0;
+        } else if (graphDraggingCanvas) {
+            graphPan.x += e.clientX - graphLastMouse.x;
+            graphPan.y += e.clientY - graphLastMouse.y;
+            graphLastMouse = { x: e.clientX, y: e.clientY };
+        } else {
+            graphHover = findNode(pos);
+            canvas.style.cursor = graphHover ? 'pointer' : 'grab';
+        }
+    });
+
+    canvas.addEventListener('mouseup', () => {
+        graphDragging = null;
+        graphDraggingCanvas = false;
+    });
+
+    canvas.addEventListener('mouseleave', () => {
+        graphDragging = null;
+        graphHover = null;
+        graphDraggingCanvas = false;
+    });
+
+    canvas.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const delta = e.deltaY > 0 ? 0.9 : 1.1;
+        graphScale = Math.max(0.3, Math.min(3, graphScale * delta));
+    }, { passive: false });
+
+    // 触摸支持
+    canvas.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        const touch = e.touches[0];
+        const rect = canvas.getBoundingClientRect();
+        const { w, h } = getCanvasSize();
+        const pos = {
+            x: (touch.clientX - rect.left - w / 2 - graphPan.x) / graphScale,
+            y: (touch.clientY - rect.top - h / 2 - graphPan.y) / graphScale
+        };
+        const node = findNode(pos);
+        if (node) {
+            graphDragging = node;
+            graphSelected = node;
+            updateGraphInfo(node);
+        } else {
+            graphDraggingCanvas = true;
+            graphLastMouse = { x: touch.clientX, y: touch.clientY };
+        }
+    }, { passive: false });
+
+    canvas.addEventListener('touchmove', (e) => {
+        e.preventDefault();
+        const touch = e.touches[0];
+        const rect = canvas.getBoundingClientRect();
+        const { w, h } = getCanvasSize();
+        const pos = {
+            x: (touch.clientX - rect.left - w / 2 - graphPan.x) / graphScale,
+            y: (touch.clientY - rect.top - h / 2 - graphPan.y) / graphScale
+        };
+        if (graphDragging) {
+            graphDragging.x = pos.x;
+            graphDragging.y = pos.y;
+            graphDragging.vx = 0;
+            graphDragging.vy = 0;
+        } else if (graphDraggingCanvas) {
+            graphPan.x += touch.clientX - graphLastMouse.x;
+            graphPan.y += touch.clientY - graphLastMouse.y;
+            graphLastMouse = { x: touch.clientX, y: touch.clientY };
+        }
+    }, { passive: false });
+
+    canvas.addEventListener('touchend', () => {
+        graphDragging = null;
+        graphDraggingCanvas = false;
+    });
+
+    function updateGraphInfo(node) {
+        const infoEl = document.getElementById('graph-node-info');
+        const jumpBtn = document.getElementById('graph-jump');
+        const ind = allIndicators.find(i => i.id === node.id);
+        if (ind) {
+            const connections = getConnections(node.id).length;
+            infoEl.innerHTML = `<strong>${ind.name}(${ind.symbol})</strong> · ${ind.categoryName} · ${connections} 个关联指标`;
+            jumpBtn.classList.remove('hidden');
+            jumpBtn.onclick = () => {
+                closeGraph();
+                if (isFavoritesView) exitFavoritesView();
+                clearSearch();
+                const targetEl = document.getElementById(`indicator-${node.id}`);
+                if (targetEl) {
+                    targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    targetEl.classList.add('ring-2', 'ring-primary-500');
+                    setTimeout(() => targetEl.classList.remove('ring-2', 'ring-primary-500'), 2000);
+                }
+            };
+        }
+    }
+}
+
+function openGraph() {
+    document.getElementById('graph-overlay').classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+    if (!graphNodes.length) {
+        initGraph();
+    }
+    startGraphSimulation();
+}
+
+function closeGraph() {
+    document.getElementById('graph-overlay').classList.add('hidden');
+    document.body.style.overflow = '';
+    document.getElementById('graph-jump').classList.add('hidden');
+    if (graphAnimFrame) {
+        cancelAnimationFrame(graphAnimFrame);
+        graphAnimFrame = null;
+    }
+}
+
+document.getElementById('graph-toggle').addEventListener('click', openGraph);
+document.getElementById('graph-close').addEventListener('click', closeGraph);
+document.getElementById('graph-overlay').addEventListener('click', (e) => {
+    if (e.target === document.getElementById('graph-overlay')) closeGraph();
+});
+
+// ========== 初始化 ==========
 document.addEventListener('DOMContentLoaded', loadIndicators);
 </script>
 {% endblock %}
