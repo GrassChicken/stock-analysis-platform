@@ -6,7 +6,7 @@
  * - 初始化 ECharts K线图（含成交量、技术指标）
  * - 支持切换K线周期和技术指标
  * - 主图指标：MA均线（5/10/20/60）、BOLL布林带
- * - 副图指标：成交量、MACD、KDJ、RSI
+ * - 副图指标：成交量、MACD、KDJ、RSI（支持单/双副图模式）
  * 
  * 依赖:
  * - window.STOCK_CODE (由 analysis.html 注入)
@@ -18,7 +18,13 @@
 let klineDataCache = null;
 let activeMA = new Set([5, 10, 20]); // 默认显示MA5/10/20
 let activeBOLL = false;
-let activeSubIndicator = 'volume'; // 默认副图：成交量
+let activeSubIndicator = 'volume';   // 副图1：成交量
+let dualSubMode = false;              // 双副图模式开关
+let activeSubIndicator2 = 'macd';    // 副图2：MACD（默认）
+
+// ============================================================
+// 技术指标计算模块
+// ============================================================
 
 /**
  * 计算移动平均线
@@ -33,7 +39,7 @@ function calculateMA(data, period) {
             for (let j = 0; j < period; j++) {
                 sum += data[i - j].close;
             }
-            result.push(+(sum / period).toFixed(2));  // 返回数字
+            result.push(+(sum / period).toFixed(2));
         }
     }
     return result;
@@ -43,34 +49,22 @@ function calculateMA(data, period) {
  * 计算布林带
  */
 function calculateBOLL(data, period = 20, multiplier = 2) {
-    const mid = [];
-    const upper = [];
-    const lower = [];
-    
+    const mid = [], upper = [], lower = [];
     for (let i = 0; i < data.length; i++) {
         if (i < period - 1) {
-            mid.push(null);
-            upper.push(null);
-            lower.push(null);
+            mid.push(null); upper.push(null); lower.push(null);
         } else {
             let sum = 0;
-            for (let j = 0; j < period; j++) {
-                sum += data[i - j].close;
-            }
+            for (let j = 0; j < period; j++) sum += data[i - j].close;
             const ma = sum / period;
-            
             let variance = 0;
-            for (let j = 0; j < period; j++) {
-                variance += Math.pow(data[i - j].close - ma, 2);
-            }
+            for (let j = 0; j < period; j++) variance += Math.pow(data[i - j].close - ma, 2);
             const std = Math.sqrt(variance / period);
-            
             mid.push(+ma.toFixed(2));
             upper.push(+(ma + multiplier * std).toFixed(2));
             lower.push(+(ma - multiplier * std).toFixed(2));
         }
     }
-    
     return { mid, upper, lower };
 }
 
@@ -78,39 +72,25 @@ function calculateBOLL(data, period = 20, multiplier = 2) {
  * 计算MACD
  */
 function calculateMACD(data, shortPeriod = 12, longPeriod = 26, signalPeriod = 9) {
-    const dif = [];
-    const dea = [];
-    const macd = [];
-    
-    let shortEMA = 0;
-    let longEMA = 0;
-    let prevDEA = 0;
-    
+    const dif = [], dea = [], macd = [];
+    let shortEMA = 0, longEMA = 0, prevDEA = 0;
     for (let i = 0; i < data.length; i++) {
-        const close = data[i].close;
-        
+        const close = +data[i].close;
         if (i === 0) {
-            shortEMA = close;
-            longEMA = close;
-            dif.push(0);
-            dea.push(0);
-            macd.push(0);
+            shortEMA = close; longEMA = close;
+            dif.push(0); dea.push(0); macd.push(0);
         } else {
             shortEMA = (close * 2 / (shortPeriod + 1)) + (shortEMA * (shortPeriod - 1) / (shortPeriod + 1));
             longEMA = (close * 2 / (longPeriod + 1)) + (longEMA * (longPeriod - 1) / (longPeriod + 1));
-            
             const currentDIF = shortEMA - longEMA;
             const currentDEA = (currentDIF * 2 / (signalPeriod + 1)) + (prevDEA * (signalPeriod - 1) / (signalPeriod + 1));
             const currentMACD = (currentDIF - currentDEA) * 2;
-            
-            dif.push(+currentDIF.toFixed(3));   // 返回数字
+            dif.push(+currentDIF.toFixed(3));
             dea.push(+currentDEA.toFixed(3));
             macd.push(+currentMACD.toFixed(3));
-            
             prevDEA = currentDEA;
         }
     }
-    
     return { dif, dea, macd };
 }
 
@@ -118,42 +98,28 @@ function calculateMACD(data, shortPeriod = 12, longPeriod = 26, signalPeriod = 9
  * 计算KDJ
  */
 function calculateKDJ(data, n = 9, m1 = 3, m2 = 3) {
-    const kArr = [];
-    const dArr = [];
-    const jArr = [];
-    
-    let prevK = 50;
-    let prevD = 50;
-    
+    const kArr = [], dArr = [], jArr = [];
+    let prevK = 50, prevD = 50;
     for (let i = 0; i < data.length; i++) {
         if (i < n - 1) {
-            kArr.push(null);
-            dArr.push(null);
-            jArr.push(null);
+            kArr.push(null); dArr.push(null); jArr.push(null);
         } else {
-            let highest = -Infinity;
-            let lowest = Infinity;
-            
+            let highest = -Infinity, lowest = Infinity;
             for (let idx = 0; idx < n; idx++) {
                 highest = Math.max(highest, +data[i - idx].high);
                 lowest = Math.min(lowest, +data[i - idx].low);
             }
-            
             const close = +data[i].close;
             const rsv = highest === lowest ? 50 : ((close - lowest) / (highest - lowest)) * 100;
             const currentK = (rsv * 2 / m1) + (prevK * (m1 - 1) / m1);
             const currentD = (currentK * 2 / m2) + (prevD * (m2 - 1) / m2);
             const currentJ = 3 * currentK - 2 * currentD;
-            
-            kArr.push(+currentK.toFixed(2));   // 返回数字
+            kArr.push(+currentK.toFixed(2));
             dArr.push(+currentD.toFixed(2));
             jArr.push(+currentJ.toFixed(2));
-            
-            prevK = currentK;
-            prevD = currentD;
+            prevK = currentK; prevD = currentD;
         }
     }
-    
     return { k: kArr, d: dArr, j: jArr };
 }
 
@@ -162,57 +128,242 @@ function calculateKDJ(data, n = 9, m1 = 3, m2 = 3) {
  */
 function calculateRSI(data, period = 14) {
     const rsi = [];
-    let avgGain = 0;
-    let avgLoss = 0;
-    
+    let avgGain = 0, avgLoss = 0;
     for (let i = 0; i < data.length; i++) {
-        if (i === 0) {
-            rsi.push(null);
-            continue;
-        }
-        
-        const change = +data[i].close - +data[i - 1].close;  // 确保数字运算
+        if (i === 0) { rsi.push(null); continue; }
+        const change = +data[i].close - +data[i - 1].close;
         const gain = change > 0 ? change : 0;
         const loss = change < 0 ? -change : 0;
-        
         if (i <= period) {
-            // 累积阶段：简单平均
-            avgGain += gain;
-            avgLoss += loss;
-            
+            avgGain += gain; avgLoss += loss;
             if (i === period) {
-                avgGain = avgGain / period;
-                avgLoss = avgLoss / period;
+                avgGain /= period; avgLoss /= period;
                 const rs = avgLoss === 0 ? 100 : avgGain / avgLoss;
-                rsi.push(+(100 - 100 / (1 + rs)).toFixed(2));  // 返回数字
-            } else {
-                rsi.push(null);
-            }
+                rsi.push(+(100 - 100 / (1 + rs)).toFixed(2));
+            } else { rsi.push(null); }
         } else {
-            // Wilder平滑阶段
             avgGain = (avgGain * (period - 1) + gain) / period;
             avgLoss = (avgLoss * (period - 1) + loss) / period;
             const rs = avgLoss === 0 ? 100 : avgGain / avgLoss;
             rsi.push(+(100 - 100 / (1 + rs)).toFixed(2));
         }
     }
-    
     return rsi;
 }
 
+// ============================================================
+// 副图渲染模块
+// ============================================================
+
+/**
+ * 构建单个副图的 grid / xAxis / yAxis / series 配置
+ * 
+ * @param {string} indicator - 指标类型：'volume' | 'macd' | 'kdj' | 'rsi'
+ * @param {Array} dates - 日期数组
+ * @param {Array} volumes - 成交量数据
+ * @param {Array} data - 原始K线数据
+ * @param {number} gridIndex - 当前副图在 grid 中的索引
+ * @param {string} top - 副图区域顶部位置（如 '72%'）
+ * @param {string} height - 副图区域高度（如 '18%'）
+ * @returns {Object} 包含 grid, xAxis, yAxis, series, legendItems 的配置对象
+ */
+function buildSubIndicatorConfig(indicator, dates, volumes, data, gridIndex, top, height) {
+    const config = {
+        grid: { left: 60, right: 20, top: top, height: height },
+        xAxis: {
+            type: 'category',
+            data: dates,
+            gridIndex: gridIndex,
+            axisLabel: { show: false },
+            axisTick: { show: false }
+        },
+        yAxis: null,
+        series: [],
+        legendItems: []
+    };
+
+    switch (indicator) {
+        case 'volume':
+            config.yAxis = {
+                scale: true,
+                gridIndex: gridIndex,
+                splitLine: { show: false },
+                axisLabel: {
+                    fontSize: 10, color: '#888',
+                    formatter: function(value) { return (value / 10000).toFixed(0) + '万'; }
+                }
+            };
+            config.series.push({
+                name: '成交量',
+                type: 'bar',
+                xAxisIndex: gridIndex,
+                yAxisIndex: gridIndex,
+                data: volumes.map(v => ({
+                    value: v[1],
+                    itemStyle: { color: v[2] >= 0 ? 'rgba(239, 68, 68, 0.6)' : 'rgba(34, 197, 94, 0.6)' }
+                }))
+            });
+            break;
+
+        case 'macd': {
+            const macd = calculateMACD(data);
+            config.yAxis = {
+                scale: true,
+                gridIndex: gridIndex,
+                splitLine: { lineStyle: { color: '#f0f0f0' } },
+                axisLabel: {
+                    fontSize: 10, color: '#888',
+                    formatter: function(value) { return value.toFixed(2); }
+                }
+            };
+            // 零轴参考线
+            config.series.push({
+                name: '_macd_zero_' + gridIndex,
+                type: 'line',
+                data: dates.map(() => 0),
+                lineStyle: { width: 1, color: '#999', type: 'solid' },
+                symbol: 'none',
+                xAxisIndex: gridIndex, yAxisIndex: gridIndex,
+                silent: true
+            });
+            config.legendItems = ['DIF', 'DEA', 'MACD'];
+            config.series.push(
+                {
+                    name: 'DIF', type: 'line', data: macd.dif, smooth: true,
+                    lineStyle: { width: 1, color: '#3b82f6' },
+                    symbol: 'none', xAxisIndex: gridIndex, yAxisIndex: gridIndex
+                },
+                {
+                    name: 'DEA', type: 'line', data: macd.dea, smooth: true,
+                    lineStyle: { width: 1, color: '#f59e0b' },
+                    symbol: 'none', xAxisIndex: gridIndex, yAxisIndex: gridIndex
+                },
+                {
+                    name: 'MACD', type: 'bar',
+                    xAxisIndex: gridIndex, yAxisIndex: gridIndex,
+                    data: macd.macd.map(v => ({
+                        value: v,
+                        itemStyle: { color: v >= 0 ? 'rgba(239, 68, 68, 0.6)' : 'rgba(34, 197, 94, 0.6)' }
+                    }))
+                }
+            );
+            break;
+        }
+
+        case 'kdj': {
+            const kdj = calculateKDJ(data);
+            config.yAxis = {
+                scale: true,
+                gridIndex: gridIndex,
+                splitLine: { lineStyle: { color: '#f0f0f0' } },
+                axisLabel: { fontSize: 10, color: '#888' }
+            };
+            // 参考线 20/80
+            config.series.push(
+                {
+                    name: '_kdj_20_' + gridIndex, type: 'line',
+                    data: dates.map(() => 20),
+                    lineStyle: { width: 1, color: '#ccc', type: 'dashed' },
+                    symbol: 'none', xAxisIndex: gridIndex, yAxisIndex: gridIndex, silent: true
+                },
+                {
+                    name: '_kdj_80_' + gridIndex, type: 'line',
+                    data: dates.map(() => 80),
+                    lineStyle: { width: 1, color: '#ccc', type: 'dashed' },
+                    symbol: 'none', xAxisIndex: gridIndex, yAxisIndex: gridIndex, silent: true
+                }
+            );
+            config.legendItems = ['K', 'D', 'J'];
+            config.series.push(
+                {
+                    name: 'K', type: 'line', data: kdj.k, smooth: true,
+                    lineStyle: { width: 1, color: '#3b82f6' },
+                    symbol: 'none', xAxisIndex: gridIndex, yAxisIndex: gridIndex
+                },
+                {
+                    name: 'D', type: 'line', data: kdj.d, smooth: true,
+                    lineStyle: { width: 1, color: '#f59e0b' },
+                    symbol: 'none', xAxisIndex: gridIndex, yAxisIndex: gridIndex
+                },
+                {
+                    name: 'J', type: 'line', data: kdj.j, smooth: true,
+                    lineStyle: { width: 1, color: '#8b5cf6' },
+                    symbol: 'none', xAxisIndex: gridIndex, yAxisIndex: gridIndex
+                }
+            );
+            break;
+        }
+
+        case 'rsi': {
+            const rsiData = calculateRSI(data);
+            config.yAxis = {
+                min: 0, max: 100, interval: 20,
+                gridIndex: gridIndex,
+                splitLine: { lineStyle: { color: '#f0f0f0' } },
+                axisLabel: { fontSize: 10, color: '#888' }
+            };
+            // 参考线 30/70
+            config.series.push(
+                {
+                    name: '_rsi_30_' + gridIndex, type: 'line',
+                    data: dates.map(() => 30),
+                    lineStyle: { width: 1, color: '#22c55e', type: 'dashed' },
+                    symbol: 'none', xAxisIndex: gridIndex, yAxisIndex: gridIndex, silent: true
+                },
+                {
+                    name: '_rsi_70_' + gridIndex, type: 'line',
+                    data: dates.map(() => 70),
+                    lineStyle: { width: 1, color: '#ef4444', type: 'dashed' },
+                    symbol: 'none', xAxisIndex: gridIndex, yAxisIndex: gridIndex, silent: true
+                }
+            );
+            config.legendItems = ['RSI'];
+            config.series.push({
+                name: 'RSI', type: 'line', data: rsiData, smooth: true,
+                lineStyle: { width: 1, color: '#8b5cf6' },
+                symbol: 'none', xAxisIndex: gridIndex, yAxisIndex: gridIndex
+            });
+            break;
+        }
+    }
+
+    return config;
+}
+
+// ============================================================
+// 图表容器高度管理
+// ============================================================
+
+/**
+ * 根据当前模式调整图表容器高度
+ */
+function updateChartContainerHeight() {
+    const chartDom = document.getElementById('kline-chart');
+    if (!chartDom) return;
+    
+    if (dualSubMode) {
+        // 双副图：需要更大的容器
+        chartDom.className = 'w-full h-[26rem] sm:h-[32rem] lg:h-[38rem]';
+    } else {
+        // 单副图：标准高度
+        chartDom.className = 'w-full h-80 sm:h-96 lg:h-[28rem]';
+    }
+}
+
+// ============================================================
+// 数据加载与图表初始化
+// ============================================================
+
 /**
  * 加载K线数据并渲染图表
- * 
- * @param {string} period - K线周期：'daily' | 'weekly' | 'monthly'
  */
 async function loadKline(period = 'daily') {
     try {
-        const count = period === 'daily' ? 120 : 150; // 增加数据量以支持更多指标计算
+        const count = period === 'daily' ? 120 : 150;
         const res = await fetch(`/api/stock/${STOCK_CODE}/kline?period=${period}&count=${count}`);
         const data = await res.json();
 
         if (data && data.data && data.data.length > 0) {
-            // 显示数据截止时间提示
             const lastTradeDate = data.data[data.data.length - 1].trade_date;
             const dateHint = document.getElementById('data-hint');
             if (lastTradeDate && dateHint) {
@@ -222,17 +373,16 @@ async function loadKline(period = 'daily') {
                 dateHint.textContent = `数据截止${year}-${month}-${day}，交易日数据在收盘后60分钟刷新！`;
             }
 
-            // 缓存数据
             klineDataCache = data;
 
-            // ★ 关键修复：先让容器可见，再初始化图表，避免 display:none 下 ECharts 获取宽度为 0
             document.getElementById('kline-skeleton').classList.add('hidden');
             document.getElementById('kline-content').classList.remove('hidden');
 
-            // 等 DOM 重绘后再初始化图表，确保容器已有正确宽高
+            // 更新容器高度后再初始化图表
+            updateChartContainerHeight();
+
             requestAnimationFrame(() => {
                 initKlineChart(data);
-                // 额外保险：强制 resize
                 if (window.klineChart) window.klineChart.resize();
             });
         }
@@ -250,7 +400,6 @@ function initKlineChart(klineData) {
     const dom = document.getElementById('kline-chart');
     window.klineChart = echarts.getInstanceByDom(dom) || echarts.init(dom);
 
-    // 准备数据
     const dates = klineData.data.map(item => item.trade_date);
     const values = klineData.data.map(item => [item.open, item.close, item.low, item.high]);
     const volumes = klineData.data.map((item, index) => {
@@ -258,382 +407,142 @@ function initKlineChart(klineData) {
         return [index, item.vol || 0, isUp ? 1 : -1];
     });
 
-    // 计算技术指标
+    // 计算MA
     const maData = {};
-    activeMA.forEach(period => {
-        maData[period] = calculateMA(klineData.data, period);
-    });
+    activeMA.forEach(period => { maData[period] = calculateMA(klineData.data, period); });
 
-    // 构建配置
+    // ========== 决定布局 ==========
+    const isDual = dualSubMode && activeSubIndicator2 !== activeSubIndicator;
+
+    // 主图高度
+    const mainTop = 40;
+    const mainHeight = isDual ? '38%' : '55%';
+    // 副图布局参数
+    const subHeight = '18%';
+    const sub1Top = isDual ? '50%' : '72%';
+    const sub2Top = '74%';
+
+    // ========== 构建基础配置 ==========
     const option = {
         tooltip: {
             trigger: 'axis',
-            axisPointer: {
-                type: 'cross',
-                lineStyle: { color: '#888', type: 'dashed' }
-            },
+            axisPointer: { type: 'cross', lineStyle: { color: '#888', type: 'dashed' } },
             backgroundColor: 'rgba(255, 255, 255, 0.95)',
             borderColor: '#ddd',
             borderWidth: 1,
             textStyle: { color: '#333', fontSize: 12 }
         },
-        legend: {
-            data: [],
-            top: 5,
-            textStyle: { fontSize: 10 }
-        },
+        legend: { data: [], top: 5, textStyle: { fontSize: 10 } },
         grid: [
-            { left: 60, right: 20, top: 40, height: '50%' }
+            { left: 60, right: 20, top: mainTop, height: mainHeight }
         ],
-        xAxis: [
-            {
-                type: 'category',
-                data: dates,
-                gridIndex: 0,
-                axisLabel: {
-                    fontSize: 10,
-                    color: '#888',
-                    rotate: 30,
-                    formatter: function(value) {
-                        return value.slice(4, 6) + '-' + value.slice(6, 8);
-                    }
-                },
-                axisTick: { show: false }
-            }
-        ],
-        yAxis: [
-            {
-                scale: true,
-                gridIndex: 0,
-                splitLine: { lineStyle: { color: '#f0f0f0' } },
-                axisLabel: { fontSize: 10, color: '#888' }
-            }
-        ],
-        dataZoom: [
-            {
-                type: 'inside',
-                xAxisIndex: [0],
-                start: 50,
-                end: 100
+        xAxis: [{
+            type: 'category',
+            data: dates,
+            gridIndex: 0,
+            axisLabel: {
+                fontSize: 10, color: '#888', rotate: 30,
+                formatter: function(value) { return value.slice(4, 6) + '-' + value.slice(6, 8); }
             },
-            {
-                type: 'slider',
-                xAxisIndex: [0],
-                bottom: 5,
-                height: 14,
-                borderColor: 'transparent',
-                backgroundColor: '#f5f5f5',
-                fillerColor: 'rgba(59, 130, 246, 0.2)',
-                handleStyle: { color: '#3b82f6' },
-                textStyle: { color: '#888', fontSize: 10 }
+            axisTick: { show: false }
+        }],
+        yAxis: [{
+            scale: true,
+            gridIndex: 0,
+            splitLine: { lineStyle: { color: '#f0f0f0' } },
+            axisLabel: { fontSize: 10, color: '#888' }
+        }],
+        dataZoom: [{
+            type: 'inside',
+            xAxisIndex: isDual ? [0, 1, 2] : [0, 1],
+            start: 50, end: 100
+        }, {
+            type: 'slider',
+            xAxisIndex: isDual ? [0, 1, 2] : [0, 1],
+            bottom: 5, height: 14,
+            borderColor: 'transparent',
+            backgroundColor: '#f5f5f5',
+            fillerColor: 'rgba(59, 130, 246, 0.2)',
+            handleStyle: { color: '#3b82f6' },
+            textStyle: { color: '#888', fontSize: 10 }
+        }],
+        series: [{
+            name: 'K线',
+            type: 'candlestick',
+            data: values,
+            itemStyle: {
+                color: '#ef4444', color0: '#22c55e',
+                borderColor: '#ef4444', borderColor0: '#22c55e'
             }
-        ],
-        series: [
-            {
-                name: 'K线',
-                type: 'candlestick',
-                data: values,
-                itemStyle: {
-                    color: '#ef4444',
-                    color0: '#22c55e',
-                    borderColor: '#ef4444',
-                    borderColor0: '#22c55e'
-                }
-            }
-        ]
+        }]
     };
 
-    // 添加MA均线
+    // ========== 主图叠加指标 ==========
     const maColors = { 5: '#f59e0b', 10: '#3b82f6', 20: '#8b5cf6', 60: '#ef4444' };
     activeMA.forEach(period => {
         option.legend.data.push(`MA${period}`);
         option.series.push({
-            name: `MA${period}`,
-            type: 'line',
-            data: maData[period],
-            smooth: true,
-            lineStyle: { width: 1, color: maColors[period] },
-            symbol: 'none',
-            xAxisIndex: 0,
-            yAxisIndex: 0
+            name: `MA${period}`, type: 'line', data: maData[period],
+            smooth: true, lineStyle: { width: 1, color: maColors[period] },
+            symbol: 'none', xAxisIndex: 0, yAxisIndex: 0
         });
     });
 
-    // 添加BOLL布林带
     if (activeBOLL) {
         const boll = calculateBOLL(klineData.data);
         option.legend.data.push('BOLL中轨', 'BOLL上轨', 'BOLL下轨');
         option.series.push(
             {
-                name: 'BOLL中轨',
-                type: 'line',
-                data: boll.mid,
-                smooth: true,
+                name: 'BOLL中轨', type: 'line', data: boll.mid, smooth: true,
                 lineStyle: { width: 1, color: '#f59e0b' },
-                symbol: 'none',
-                xAxisIndex: 0,
-                yAxisIndex: 0
+                symbol: 'none', xAxisIndex: 0, yAxisIndex: 0
             },
             {
-                name: 'BOLL上轨',
-                type: 'line',
-                data: boll.upper,
-                smooth: true,
+                name: 'BOLL上轨', type: 'line', data: boll.upper, smooth: true,
                 lineStyle: { width: 1, color: '#ef4444', type: 'dashed' },
-                symbol: 'none',
-                xAxisIndex: 0,
-                yAxisIndex: 0
+                symbol: 'none', xAxisIndex: 0, yAxisIndex: 0
             },
             {
-                name: 'BOLL下轨',
-                type: 'line',
-                data: boll.lower,
-                smooth: true,
+                name: 'BOLL下轨', type: 'line', data: boll.lower, smooth: true,
                 lineStyle: { width: 1, color: '#22c55e', type: 'dashed' },
-                symbol: 'none',
-                xAxisIndex: 0,
-                yAxisIndex: 0
+                symbol: 'none', xAxisIndex: 0, yAxisIndex: 0
             }
         );
     }
 
-    // 根据副图指标调整布局
-    if (activeSubIndicator === 'volume') {
-        // 成交量副图
-        option.grid.push({ left: 60, right: 20, top: '72%', height: '18%' });
-        option.xAxis.push({
-            type: 'category',
-            data: dates,
-            gridIndex: 1,
-            axisLabel: { show: false },
-            axisTick: { show: false }
-        });
-        option.yAxis.push({
-            scale: true,
-            gridIndex: 1,
-            splitLine: { show: false },
-            axisLabel: {
-                fontSize: 10,
-                color: '#888',
-                formatter: function(value) {
-                    return (value / 10000).toFixed(0) + '万';
-                }
-            }
-        });
-        option.series.push({
-            name: '成交量',
-            type: 'bar',
-            xAxisIndex: 1,
-            yAxisIndex: 1,
-            data: volumes.map(v => ({
-                value: v[1],
-                itemStyle: {
-                    color: v[2] >= 0 ? 'rgba(239, 68, 68, 0.6)' : 'rgba(34, 197, 94, 0.6)'
-                }
-            }))
-        });
-    } else if (activeSubIndicator === 'macd') {
-        // MACD副图
-        const macd = calculateMACD(klineData.data);
-        option.grid.push({ left: 60, right: 20, top: '72%', height: '18%' });
-        option.xAxis.push({
-            type: 'category',
-            data: dates,
-            gridIndex: 1,
-            axisLabel: { show: false },
-            axisTick: { show: false }
-        });
-        option.yAxis.push({
-            scale: true,
-            gridIndex: 1,
-            splitLine: { lineStyle: { color: '#f0f0f0' } },
-            axisLabel: {
-                fontSize: 10,
-                color: '#888',
-                formatter: function(value) {
-                    return value.toFixed(2);
-                }
-            }
-        });
-        // 添加MACD零轴参考线
-        option.series.push({
-            name: '_macd_zero',
-            type: 'line',
-            data: dates.map(() => 0),
-            lineStyle: { width: 1, color: '#999', type: 'solid' },
-            symbol: 'none',
-            xAxisIndex: 1,
-            yAxisIndex: 1,
-            silent: true
-        });
-        option.legend.data.push('DIF', 'DEA', 'MACD');
-        option.series.push(
-            {
-                name: 'DIF',
-                type: 'line',
-                data: macd.dif,
-                smooth: true,
-                lineStyle: { width: 1, color: '#3b82f6' },
-                symbol: 'none',
-                xAxisIndex: 1,
-                yAxisIndex: 1
-            },
-            {
-                name: 'DEA',
-                type: 'line',
-                data: macd.dea,
-                smooth: true,
-                lineStyle: { width: 1, color: '#f59e0b' },
-                symbol: 'none',
-                xAxisIndex: 1,
-                yAxisIndex: 1
-            },
-            {
-                name: 'MACD',
-                type: 'bar',
-                xAxisIndex: 1,
-                yAxisIndex: 1,
-                data: macd.macd.map(v => ({
-                    value: v,
-                    itemStyle: {
-                        color: v >= 0 ? 'rgba(239, 68, 68, 0.6)' : 'rgba(34, 197, 94, 0.6)'
-                    }
-                }))
-            }
+    // ========== 副图1 ==========
+    const sub1 = buildSubIndicatorConfig(
+        activeSubIndicator, dates, volumes, klineData.data,
+        1, sub1Top, subHeight
+    );
+    option.grid.push(sub1.grid);
+    option.xAxis.push(sub1.xAxis);
+    option.yAxis.push(sub1.yAxis);
+    option.series.push(...sub1.series);
+    option.legend.data.push(...sub1.legendItems);
+
+    // ========== 副图2（双副图模式） ==========
+    if (isDual) {
+        const sub2 = buildSubIndicatorConfig(
+            activeSubIndicator2, dates, volumes, klineData.data,
+            2, sub2Top, subHeight
         );
-    } else if (activeSubIndicator === 'kdj') {
-        // KDJ副图
-        const kdj = calculateKDJ(klineData.data);
-        option.grid.push({ left: 60, right: 20, top: '72%', height: '18%' });
-        option.xAxis.push({
-            type: 'category',
-            data: dates,
-            gridIndex: 1,
-            axisLabel: { show: false },
-            axisTick: { show: false }
-        });
-        option.yAxis.push({
-            scale: true,   // 自适应范围，J值可能超过0-100
-            gridIndex: 1,
-            splitLine: { lineStyle: { color: '#f0f0f0' } },
-            axisLabel: { fontSize: 10, color: '#888' }
-        });
-        // 添加KDJ参考线（20/50/80）
-        option.series.push(
-            {
-                name: '_kdj_20',
-                type: 'line',
-                data: dates.map(() => 20),
-                lineStyle: { width: 1, color: '#ccc', type: 'dashed' },
-                symbol: 'none',
-                xAxisIndex: 1,
-                yAxisIndex: 1,
-                silent: true
-            },
-            {
-                name: '_kdj_80',
-                type: 'line',
-                data: dates.map(() => 80),
-                lineStyle: { width: 1, color: '#ccc', type: 'dashed' },
-                symbol: 'none',
-                xAxisIndex: 1,
-                yAxisIndex: 1,
-                silent: true
-            }
-        );
-        option.legend.data.push('K', 'D', 'J');
-        option.series.push(
-            {
-                name: 'K',
-                type: 'line',
-                data: kdj.k,
-                smooth: true,
-                lineStyle: { width: 1, color: '#3b82f6' },
-                symbol: 'none',
-                xAxisIndex: 1,
-                yAxisIndex: 1
-            },
-            {
-                name: 'D',
-                type: 'line',
-                data: kdj.d,
-                smooth: true,
-                lineStyle: { width: 1, color: '#f59e0b' },
-                symbol: 'none',
-                xAxisIndex: 1,
-                yAxisIndex: 1
-            },
-            {
-                name: 'J',
-                type: 'line',
-                data: kdj.j,
-                smooth: true,
-                lineStyle: { width: 1, color: '#8b5cf6' },
-                symbol: 'none',
-                xAxisIndex: 1,
-                yAxisIndex: 1
-            }
-        );
-    } else if (activeSubIndicator === 'rsi') {
-        // RSI副图
-        const rsi = calculateRSI(klineData.data);
-        option.grid.push({ left: 60, right: 20, top: '72%', height: '18%' });
-        option.xAxis.push({
-            type: 'category',
-            data: dates,
-            gridIndex: 1,
-            axisLabel: { show: false },
-            axisTick: { show: false }
-        });
-        option.yAxis.push({
-            min: 0,
-            max: 100,
-            interval: 20,
-            gridIndex: 1,
-            splitLine: { lineStyle: { color: '#f0f0f0' } },
-            axisLabel: { fontSize: 10, color: '#888' }
-        });
-        // 添加RSI参考线（30/70）
-        option.series.push(
-            {
-                name: '_rsi_30',
-                type: 'line',
-                data: dates.map(() => 30),
-                lineStyle: { width: 1, color: '#22c55e', type: 'dashed' },
-                symbol: 'none',
-                xAxisIndex: 1,
-                yAxisIndex: 1,
-                silent: true
-            },
-            {
-                name: '_rsi_70',
-                type: 'line',
-                data: dates.map(() => 70),
-                lineStyle: { width: 1, color: '#ef4444', type: 'dashed' },
-                symbol: 'none',
-                xAxisIndex: 1,
-                yAxisIndex: 1,
-                silent: true
-            }
-        );
-        option.legend.data.push('RSI');
-        option.series.push({
-            name: 'RSI',
-            type: 'line',
-            data: rsi,
-            smooth: true,
-            lineStyle: { width: 1, color: '#8b5cf6' },
-            symbol: 'none',
-            xAxisIndex: 1,
-            yAxisIndex: 1
-        });
+        option.grid.push(sub2.grid);
+        option.xAxis.push(sub2.xAxis);
+        option.yAxis.push(sub2.yAxis);
+        option.series.push(...sub2.series);
+        option.legend.data.push(...sub2.legendItems);
     }
 
     window.klineChart.setOption(option, { notMerge: true });
 }
 
-// 初始化事件监听
+// ============================================================
+// 事件监听
+// ============================================================
+
 document.addEventListener('DOMContentLoaded', function() {
+
     // MA均线切换
     document.addEventListener('click', function(e) {
         if (e.target.classList.contains('ma-toggle')) {
@@ -655,18 +564,15 @@ document.addEventListener('DOMContentLoaded', function() {
     document.addEventListener('click', function(e) {
         if (e.target.classList.contains('boll-toggle')) {
             activeBOLL = !activeBOLL;
-            if (activeBOLL) {
-                e.target.classList.add('bg-primary-500', 'text-white');
-                e.target.classList.remove('bg-gray-100', 'text-gray-600');
-            } else {
-                e.target.classList.remove('bg-primary-500', 'text-white');
-                e.target.classList.add('bg-gray-100', 'text-gray-600');
-            }
+            e.target.classList.toggle('bg-primary-500');
+            e.target.classList.toggle('text-white');
+            e.target.classList.toggle('bg-gray-100');
+            e.target.classList.toggle('text-gray-600');
             if (klineDataCache) initKlineChart(klineDataCache);
         }
     });
 
-    // 副图指标切换
+    // 副图1切换
     document.addEventListener('click', function(e) {
         if (e.target.classList.contains('sub-indicator')) {
             document.querySelectorAll('.sub-indicator').forEach(btn => {
@@ -676,7 +582,80 @@ document.addEventListener('DOMContentLoaded', function() {
             e.target.classList.add('bg-primary-500', 'text-white');
             e.target.classList.remove('bg-gray-100', 'text-gray-600');
             activeSubIndicator = e.target.dataset.indicator;
+            
+            // 双副图模式下，副图2不能与副图1相同，自动切换
+            if (dualSubMode && activeSubIndicator2 === activeSubIndicator) {
+                const alternatives = ['volume', 'macd', 'kdj', 'rsi'].filter(i => i !== activeSubIndicator);
+                activeSubIndicator2 = alternatives[0];
+                updateSubIndicator2Buttons();
+            }
+            
             if (klineDataCache) initKlineChart(klineDataCache);
         }
     });
+
+    // 副图2切换
+    document.addEventListener('click', function(e) {
+        if (e.target.classList.contains('sub-indicator-2')) {
+            document.querySelectorAll('.sub-indicator-2').forEach(btn => {
+                btn.classList.remove('bg-primary-500', 'text-white');
+                btn.classList.add('bg-gray-100', 'text-gray-600');
+            });
+            e.target.classList.add('bg-primary-500', 'text-white');
+            e.target.classList.remove('bg-gray-100', 'text-gray-600');
+            activeSubIndicator2 = e.target.dataset.indicator;
+            if (klineDataCache) initKlineChart(klineDataCache);
+        }
+    });
+
+    // 双副图开关
+    document.addEventListener('click', function(e) {
+        const btn = e.target.closest('#dual-sub-toggle');
+        if (!btn) return;
+        
+        dualSubMode = !dualSubMode;
+        const wrapper = document.getElementById('sub-indicator-2-wrapper');
+        
+        if (dualSubMode) {
+            btn.classList.add('bg-primary-500', 'text-white');
+            btn.classList.remove('bg-gray-100', 'text-gray-600');
+            wrapper.classList.remove('hidden');
+            
+            // 确保副图2与副图1不同
+            if (activeSubIndicator2 === activeSubIndicator) {
+                const alternatives = ['volume', 'macd', 'kdj', 'rsi'].filter(i => i !== activeSubIndicator);
+                activeSubIndicator2 = alternatives[0];
+                updateSubIndicator2Buttons();
+            }
+        } else {
+            btn.classList.remove('bg-primary-500', 'text-white');
+            btn.classList.add('bg-gray-100', 'text-gray-600');
+            wrapper.classList.add('hidden');
+        }
+        
+        // 更新容器高度并重绘
+        if (klineDataCache) {
+            updateChartContainerHeight();
+            // 延迟一帧让DOM完成高度变化
+            requestAnimationFrame(() => {
+                if (window.klineChart) window.klineChart.resize();
+                initKlineChart(klineDataCache);
+            });
+        }
+    });
 });
+
+/**
+ * 更新副图2按钮的选中状态
+ */
+function updateSubIndicator2Buttons() {
+    document.querySelectorAll('.sub-indicator-2').forEach(btn => {
+        if (btn.dataset.indicator === activeSubIndicator2) {
+            btn.classList.add('bg-primary-500', 'text-white');
+            btn.classList.remove('bg-gray-100', 'text-gray-600');
+        } else {
+            btn.classList.remove('bg-primary-500', 'text-white');
+            btn.classList.add('bg-gray-100', 'text-gray-600');
+        }
+    });
+}

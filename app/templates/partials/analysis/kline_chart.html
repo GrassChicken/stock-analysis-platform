@@ -34,16 +34,36 @@
         </div>
     </div>
     
-    <!-- 图表容器（高度增加以容纳副图） -->
+    <!-- 图表容器（高度动态调整） -->
     <div id="kline-chart" class="w-full h-80 sm:h-96 lg:h-[28rem]"></div>
     
-    <!-- 副图指标切换按钮 -->
-    <div class="flex items-center justify-center mt-2 space-x-1">
-        <span class="text-xs text-gray-400 mr-2">副图:</span>
-        <button class="sub-indicator btn-press px-2 py-1 text-xs rounded bg-gray-100 text-gray-600 hover:bg-gray-200" data-indicator="volume">成交量</button>
-        <button class="sub-indicator btn-press px-2 py-1 text-xs rounded bg-gray-100 text-gray-600 hover:bg-gray-200" data-indicator="macd">MACD</button>
-        <button class="sub-indicator btn-press px-2 py-1 text-xs rounded bg-gray-100 text-gray-600 hover:bg-gray-200" data-indicator="kdj">KDJ</button>
-        <button class="sub-indicator btn-press px-2 py-1 text-xs rounded bg-gray-100 text-gray-600 hover:bg-gray-200" data-indicator="rsi">RSI</button>
+    <!-- 副图控制区域 -->
+    <div class="mt-2 space-y-1">
+        <!-- 副图1 + 双副图开关 -->
+        <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-1">
+                <span class="text-xs text-gray-400 mr-1">副图1:</span>
+                <button class="sub-indicator btn-press px-2 py-1 text-xs rounded bg-primary-500 text-white" data-indicator="volume">成交量</button>
+                <button class="sub-indicator btn-press px-2 py-1 text-xs rounded bg-gray-100 text-gray-600 hover:bg-gray-200" data-indicator="macd">MACD</button>
+                <button class="sub-indicator btn-press px-2 py-1 text-xs rounded bg-gray-100 text-gray-600 hover:bg-gray-200" data-indicator="kdj">KDJ</button>
+                <button class="sub-indicator btn-press px-2 py-1 text-xs rounded bg-gray-100 text-gray-600 hover:bg-gray-200" data-indicator="rsi">RSI</button>
+            </div>
+            <button id="dual-sub-toggle" class="btn-press px-2 py-1 text-xs rounded bg-gray-100 text-gray-600 hover:bg-gray-200 flex items-center space-x-1">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"></path>
+                </svg>
+                <span>双副图</span>
+            </button>
+        </div>
+        
+        <!-- 副图2（默认隐藏） -->
+        <div id="sub-indicator-2-wrapper" class="hidden flex items-center space-x-1">
+            <span class="text-xs text-gray-400 mr-1">副图2:</span>
+            <button class="sub-indicator-2 btn-press px-2 py-1 text-xs rounded bg-primary-500 text-white" data-indicator="macd">MACD</button>
+            <button class="sub-indicator-2 btn-press px-2 py-1 text-xs rounded bg-gray-100 text-gray-600 hover:bg-gray-200" data-indicator="kdj">KDJ</button>
+            <button class="sub-indicator-2 btn-press px-2 py-1 text-xs rounded bg-gray-100 text-gray-600 hover:bg-gray-200" data-indicator="rsi">RSI</button>
+            <button class="sub-indicator-2 btn-press px-2 py-1 text-xs rounded bg-gray-100 text-gray-600 hover:bg-gray-200" data-indicator="volume">成交量</button>
+        </div>
     </div>
     
     <div id="data-hint" class="mt-2 text-xs text-gray-400 text-center"></div>
