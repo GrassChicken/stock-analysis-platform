@@ -362,6 +362,7 @@ let graphScale = 1;
 let graphPan = { x: 0, y: 0 };
 let graphDraggingCanvas = false;
 let graphLastMouse = { x: 0, y: 0 };
+let graphBound = false; // 交互/resize 监听是否已绑定（防止重复开关弹窗累加监听）
 
 function getConnections(id) { return graphEdges.filter(e => e.source === id || e.target === id); }
 
@@ -402,57 +403,81 @@ function initGraph() {
 function startGraph() {
     const canvas = document.getElementById('graph-canvas');
     const ctx = canvas.getContext('2d');
-    
+
+    // 防止重复启动多个动画循环
+    if (graphAnimFrame) { cancelAnimationFrame(graphAnimFrame); graphAnimFrame = null; }
+
     // 设置 Canvas 尺寸
     function resize() {
         const container = document.getElementById('graph-canvas-container');
-        const w = container.clientWidth;
-        const h = container.clientHeight;
+        const w = container.clientWidth || container.offsetWidth || 600;
+        const h = container.clientHeight || container.offsetHeight || 600;
         canvas.width = w * 2;
         canvas.height = h * 2;
         canvas.style.width = w + 'px';
         canvas.style.height = h + 'px';
-        ctx.scale(2, 2);
+        ctx.setTransform(2, 0, 0, 2, 0, 0); // 用 setTransform 重置矩阵，避免 scale 累加
+    }
+
+    resize();
+    if (!graphBound) {
+        window.addEventListener('resize', resize);
     }
     
-    resize();
-    window.addEventListener('resize', resize);
-    
-    // 力导向
+    // 力导向布局（带理想边长的弹簧 + 速度/坐标限幅，保证稳定收敛、绝不飞出视野）
+    const IDEAL_LEN = 95;   // 连接边理想长度
+    const REPULSION = 2200; // 斥力强度
+    const SPRING = 0.025;   // 弹簧系数
+    const CENTER = 0.012;   // 中心引力
+    const DAMP = 0.86;      // 速度衰减
+    const MAX_V = 9;        // 单帧最大位移
     function simulate() {
-        graphNodes.forEach((a, i) => {
-            // 斥力
-            graphNodes.slice(i + 1).forEach(b => {
-                const dx = a.x - b.x, dy = a.y - b.y;
-                const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-                const force = 500 / (dist * dist);
-                a.vx += (dx / dist) * force * 0.1;
-                a.vy += (dy / dist) * force * 0.1;
-                b.vx -= (dx / dist) * force * 0.1;
-                b.vy -= (dy / dist) * force * 0.1;
-            });
-        });
-        
-        // 引力
+        const W = canvas.width / 2, H = canvas.height / 2;
+        const bound = Math.max(120, Math.min(W, H) * 0.46);
+
+        // 斥力（所有节点对，方向已归一化）
+        for (let i = 0; i < graphNodes.length; i++) {
+            const a = graphNodes[i];
+            for (let j = i + 1; j < graphNodes.length; j++) {
+                const b = graphNodes[j];
+                let dx = a.x - b.x, dy = a.y - b.y;
+                let dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < 0.01) { dx = (Math.random() - 0.5); dy = (Math.random() - 0.5); dist = 0.5; }
+                const force = REPULSION / (dist * dist);
+                const fx = (dx / dist) * force, fy = (dy / dist) * force;
+                a.vx += fx; a.vy += fy;
+                b.vx -= fx; b.vy -= fy;
+            }
+        }
+
+        // 引力（连接边，带理想长度的弹簧，方向归一化）
         graphEdges.forEach(edge => {
             const a = graphNodes.find(n => n.id === edge.source);
             const b = graphNodes.find(n => n.id === edge.target);
-            if (a && b) {
-                const dx = b.x - a.x, dy = b.y - a.y;
-                const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-                const force = dist * 0.01;
-                a.vx += dx * force; a.vy += dy * force;
-                b.vx -= dx * force; b.vy -= dy * force;
-            }
+            if (!a || !b) return;
+            const dx = b.x - a.x, dy = b.y - a.y;
+            const dist = Math.sqrt(dx * dx + dy * dy) || 0.01;
+            const force = (dist - IDEAL_LEN) * SPRING;
+            const fx = (dx / dist) * force, fy = (dy / dist) * force;
+            a.vx += fx; a.vy += fy;
+            b.vx -= fx; b.vy -= fy;
         });
-        
-        // 中心引力 + 更新
+
+        // 中心引力 + 阻尼 + 限幅 + 更新
         graphNodes.forEach(node => {
-            if (node === graphDragging) return;
-            node.vx -= node.x * 0.02;
-            node.vy -= node.y * 0.02;
-            node.vx *= 0.9; node.vy *= 0.9;
+            if (node === graphDragging) { node.vx = 0; node.vy = 0; return; }
+            node.vx -= node.x * CENTER;
+            node.vy -= node.y * CENTER;
+            node.vx *= DAMP; node.vy *= DAMP;
+            // 速度限幅：杜绝任何参数失配导致的瞬间发散（根治“一闪而过”）
+            const sp = Math.hypot(node.vx, node.vy);
+            if (sp > MAX_V) { node.vx = node.vx / sp * MAX_V; node.vy = node.vy / sp * MAX_V; }
             node.x += node.vx; node.y += node.vy;
+            // 坐标软边界：兜底，节点绝不飞出可视区
+            if (node.x > bound) { node.x = bound; node.vx *= -0.3; }
+            else if (node.x < -bound) { node.x = -bound; node.vx *= -0.3; }
+            if (node.y > bound) { node.y = bound; node.vy *= -0.3; }
+            else if (node.y < -bound) { node.y = -bound; node.vy *= -0.3; }
         });
     }
 
@@ -560,14 +585,17 @@ function startGraph() {
 
     function onUp() { graphDragging = null; graphDraggingCanvas = false; }
 
-    canvas.addEventListener('mousedown', onDown);
-    canvas.addEventListener('mousemove', onMove);
-    canvas.addEventListener('mouseup', onUp);
-    canvas.addEventListener('mouseleave', onUp);
-    canvas.addEventListener('touchstart', onDown, { passive: false });
-    canvas.addEventListener('touchmove', onMove, { passive: false });
-    canvas.addEventListener('touchend', onUp);
-    canvas.addEventListener('wheel', (e) => { e.preventDefault(); graphScale = Math.max(0.3, Math.min(3, graphScale * (e.deltaY > 0 ? 0.9 : 1.1))); }, { passive: false });
+    if (!graphBound) {
+        canvas.addEventListener('mousedown', onDown);
+        canvas.addEventListener('mousemove', onMove);
+        canvas.addEventListener('mouseup', onUp);
+        canvas.addEventListener('mouseleave', onUp);
+        canvas.addEventListener('touchstart', onDown, { passive: false });
+        canvas.addEventListener('touchmove', onMove, { passive: false });
+        canvas.addEventListener('touchend', onUp);
+        canvas.addEventListener('wheel', (e) => { e.preventDefault(); graphScale = Math.max(0.3, Math.min(3, graphScale * (e.deltaY > 0 ? 0.9 : 1.1))); }, { passive: false });
+        graphBound = true;
+    }
 
     function updateInfo(node) {
         const ind = allIndicators.find(i => i.id === node.id);
