@@ -21,6 +21,9 @@ function renderIndustry(data) {
     
     const fmt = (v, unit = '') => v != null ? (typeof v === 'number' ? v.toFixed(2) + unit : v) : '--';
     
+    // PE/PB 专用格式化：0/null/undefined 都显示 "--"
+    const fmtRatio = (v) => (v != null && v !== 0) ? (typeof v === 'number' ? v.toFixed(2) : v) : '--';
+    
     const trendColor = (trend) => {
         if (trend === '热门') return 'text-rise';
         if (trend === '冷门') return 'text-fall';
@@ -72,11 +75,11 @@ function renderIndustry(data) {
         <div class="bg-gray-50 rounded-lg p-4">
             <h4 class="text-sm font-semibold text-gray-600 mb-3">📊 行业内对比 (共 ${peerComparison.peer_count} 家)</h4>
             <div class="space-y-2 text-xs sm:text-sm">
-                <div class="flex justify-between items-center"><span class="text-gray-500">PE排名</span><span class="font-semibold">第 ${peerComparison.pe_rank} 名 (${fmt(peerComparison.pe_percentile, '%')})</span></div>
-                <div class="flex justify-between items-center"><span class="text-gray-500">PB排名</span><span class="font-semibold">第 ${peerComparison.pb_rank} 名 (${fmt(peerComparison.pb_percentile, '%')})</span></div>
-                <div class="flex justify-between items-center border-t pt-2 mt-2"><span class="text-gray-500">当前PE</span><span class="font-semibold tabular-nums">${fmt(peerComparison.current.pe)}</span></div>
-                <div class="flex justify-between items-center"><span class="text-gray-500">当前PB</span><span class="font-semibold tabular-nums">${fmt(peerComparison.current.pb)}</span></div>
-                <div class="flex justify-between items-center"><span class="text-gray-500">总市值</span><span class="font-semibold tabular-nums">${(peerComparison.current.total_mv / 100000000).toFixed(2)}亿</span></div>
+                <div class="flex justify-between items-center"><span class="text-gray-500">PE排名</span><span class="font-semibold">${peerComparison.pe_rank ? `第 ${peerComparison.pe_rank} 名 (${fmt(peerComparison.pe_percentile, '%')})` : '--'}</span></div>
+                <div class="flex justify-between items-center"><span class="text-gray-500">PB排名</span><span class="font-semibold">${peerComparison.pb_rank ? `第 ${peerComparison.pb_rank} 名 (${fmt(peerComparison.pb_percentile, '%')})` : '--'}</span></div>
+                <div class="flex justify-between items-center border-t pt-2 mt-2"><span class="text-gray-500">当前PE</span><span class="font-semibold tabular-nums">${fmtRatio(peerComparison.current.pe)}</span></div>
+                <div class="flex justify-between items-center"><span class="text-gray-500">当前PB</span><span class="font-semibold tabular-nums">${fmtRatio(peerComparison.current.pb)}</span></div>
+                <div class="flex justify-between items-center"><span class="text-gray-500">总市值</span><span class="font-semibold tabular-nums">${(peerComparison.current.total_mv / 10000).toFixed(2)}亿</span></div>
             </div>
         </div>
         ` : `

@@ -179,11 +179,25 @@ class IndustryAnalyzer:
                     
                     daily_basic = self._get_cached_daily_basic(ts_code)
                     if daily_basic:
+                        # 优先使用 pe_ttm（滚动市盈率），更能反映当前估值
+                        pe_val = daily_basic.get('pe_ttm') or daily_basic.get('pe')
+                        # 无效值（0/None/负数过大）视为不可用
+                        if pe_val and pe_val != 0 and abs(pe_val) < 10000:
+                            pe_val = round(pe_val, 2)
+                        else:
+                            pe_val = None
+                        
+                        pb_val = daily_basic.get('pb')
+                        if pb_val and pb_val != 0:
+                            pb_val = round(pb_val, 2)
+                        else:
+                            pb_val = None
+                        
                         peer_data.append({
                             'code': stock.get('code'),
                             'name': stock.get('name'),
-                            'pe': daily_basic.get('pe', 0),
-                            'pb': daily_basic.get('pb', 0),
+                            'pe': pe_val,
+                            'pb': pb_val,
                             'total_mv': daily_basic.get('total_mv', 0),
                         })
                 except Exception as e:
@@ -198,9 +212,24 @@ class IndustryAnalyzer:
             if not current:
                 return {'available': False}
             
-            # 计算排名
-            pe_rank = sum(1 for p in peer_data if 0 < p['pe'] < current['pe']) + 1
-            pb_rank = sum(1 for p in peer_data if 0 < p['pb'] < current['pb']) + 1
+            # 计算排名（跳过 None/无效值）
+            valid_pe_peers = [p for p in peer_data if p['pe'] is not None and p['pe'] > 0]
+            valid_pb_peers = [p for p in peer_data if p['pb'] is not None and p['pb'] > 0]
+            
+            if current['pe'] is not None and current['pe'] > 0:
+                pe_rank = sum(1 for p in valid_pe_peers if p['pe'] < current['pe']) + 1
+                pe_percentile = round(pe_rank / len(valid_pe_peers) * 100, 1) if valid_pe_peers else None
+            else:
+                pe_rank = None
+                pe_percentile = None
+            
+            if current['pb'] is not None and current['pb'] > 0:
+                pb_rank = sum(1 for p in valid_pb_peers if p['pb'] < current['pb']) + 1
+                pb_percentile = round(pb_rank / len(valid_pb_peers) * 100, 1) if valid_pb_peers else None
+            else:
+                pb_rank = None
+                pb_percentile = None
+            
             mv_rank = sum(1 for p in peer_data if p['total_mv'] > current['total_mv']) + 1
             
             return {
@@ -210,8 +239,8 @@ class IndustryAnalyzer:
                 'pe_rank': pe_rank,
                 'pb_rank': pb_rank,
                 'mv_rank': mv_rank,
-                'pe_percentile': round(pe_rank / len(peer_data) * 100, 1),
-                'pb_percentile': round(pb_rank / len(peer_data) * 100, 1),
+                'pe_percentile': pe_percentile,
+                'pb_percentile': pb_percentile,
                 'mv_percentile': round(mv_rank / len(peer_data) * 100, 1),
             }
         except Exception as e:
