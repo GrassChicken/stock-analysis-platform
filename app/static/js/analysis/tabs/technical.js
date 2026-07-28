@@ -161,10 +161,10 @@ function renderTechnical(data) {
         <div class="bg-gray-50 rounded-lg p-4">
             <h4 class="text-sm font-semibold text-gray-600 mb-3">📊 量价分析</h4>
             <div class="space-y-2 text-sm">
-                <div class="flex justify-between"><span class="text-gray-500">量比</span><span class="font-semibold tabular-nums">${fmt(volume.volume_ratio)}</span></div>
-                <div class="flex justify-between"><span class="text-gray-500">量能状态</span><span class="font-semibold">${volume.vol_status || '--'}</span></div>
-                <div class="flex justify-between"><span class="text-gray-500">量价配合</span><span class="font-semibold">${volume.coordination || '--'}</span></div>
-                <div class="flex justify-between"><span class="text-gray-500">5日量变化</span><span class="font-semibold tabular-nums">${fmt(volume.vol_trend_5d, '%')}</span></div>
+                <div class="flex justify-between"><span class="text-gray-500">量比</span><span class="font-semibold tabular-nums ${volume.volume_ratio > 1.5 ? 'text-rise' : volume.volume_ratio < 0.7 ? 'text-fall' : 'text-gray-700'}">${fmt(volume.volume_ratio)}</span></div>
+                <div class="flex justify-between"><span class="text-gray-500">量能状态</span><span class="font-semibold ${({'heavy_volume':'text-rise','increased':'text-rise','normal':'text-gray-700','shrunk':'text-fall','heavy_shrink':'text-fall'})[volume.vol_status] || 'text-gray-700'}">${({'heavy_volume':'明显放量','increased':'温和放量','normal':'量能正常','shrunk':'缩量','heavy_shrink':'明显缩量'})[volume.vol_status] || volume.vol_status || '--'}</span></div>
+                <div class="flex justify-between"><span class="text-gray-500">量价配合</span><span class="font-semibold ${({'price_vol_up':'text-rise','price_up_vol_down':'text-yellow-600','price_down_vol_up':'text-fall','price_vol_down':'text-gray-700','unknown':'text-gray-400'})[volume.coordination] || 'text-gray-700'}">${({'price_vol_up':'量价齐升 ✅','price_up_vol_down':'价升量缩 ⚠️','price_down_vol_up':'价跌量增 ⚠️','price_vol_down':'量价齐跌','unknown':'数据不足'})[volume.coordination] || volume.coordination || '--'}</span></div>
+                <div class="flex justify-between"><span class="text-gray-500">5日量变化</span><span class="font-semibold tabular-nums ${volume.vol_trend_5d > 20 ? 'text-rise' : volume.vol_trend_5d < -20 ? 'text-fall' : 'text-gray-700'}">${fmt(volume.vol_trend_5d, '%')}</span></div>
             </div>
         </div>
     </div>
