@@ -411,8 +411,10 @@ class StockService:
                     'winner_rate': _f(r.get('winner_rate')),   # 获利比例
                     'weight_avg': _f(r.get('weight_avg')),      # 加权平均成本
                     'cost_50pct': _f(r.get('cost_50pct')),      # 50分位成本
-                    'cost_5pct': _f(r.get('cost_5pct')),        # 5分位成本（90%集中区间下沿）
-                    'cost_95pct': _f(r.get('cost_95pct')),      # 95分位成本（90%集中区间上沿）
+                    'cost_5pct': _f(r.get('cost_5pct')),        # 5分位成本
+                    'cost_15pct': _f(r.get('cost_15pct')),      # 15分位成本
+                    'cost_85pct': _f(r.get('cost_85pct')),      # 85分位成本
+                    'cost_95pct': _f(r.get('cost_95pct')),      # 95分位成本
                 }
 
             result = {

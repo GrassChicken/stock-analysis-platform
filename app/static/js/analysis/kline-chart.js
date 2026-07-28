@@ -26,6 +26,40 @@ let activeSubIndicator2 = 'macd';    // 副图2：MACD（默认）
 let activeChips = false;             // 筹码峰开关
 let chipsDataCache = null;           // 筹码数据 {available, trade_date, distribution, perf}
 let chipsLoading = false;
+let chipsConcMode = 90;              // 筹码集中度模式：90 或 70
+let _chipsYIdx = -1;                 // 筹码 y 轴索引（datazoom 同步用）
+let _chipsDzBound = false;           // datazoom 监听是否已绑定
+
+/** 计算 dataZoom 窗口内 K 线价格范围（含 5% padding） */
+function getVisiblePriceRange(data, startPct, endPct) {
+    const n = data.length;
+    const s = Math.max(0, Math.floor(n * startPct / 100));
+    const e = Math.min(n, Math.ceil(n * endPct / 100));
+    const win = data.slice(s, e);
+    if (!win.length) return { min: 0, max: 1 };
+    let lo = Infinity, hi = -Infinity;
+    win.forEach(d => { lo = Math.min(lo, +d.low); hi = Math.max(hi, +d.high); });
+    const pad = (hi - lo) * 0.05 || 1;
+    return { min: +(lo - pad).toFixed(2), max: +(hi + pad).toFixed(2) };
+}
+
+/** datazoom 事件同步主图 + 筹码 y 轴范围 */
+function syncChipsYAxis() {
+    if (!activeChips || _chipsYIdx < 0 || !window.klineChart || !klineDataCache) return;
+    const opt = window.klineChart.getOption();
+    const dz = opt.dataZoom[0];
+    const range = getVisiblePriceRange(klineDataCache.data, dz.start, dz.end);
+    const yUp = [];
+    yUp[0] = { min: range.min, max: range.max };
+    yUp[_chipsYIdx] = { min: range.min, max: range.max };
+    window.klineChart.setOption({ yAxis: yUp });
+}
+
+function bindChipsDataZoom() {
+    if (_chipsDzBound || !window.klineChart) return;
+    window.klineChart.on('datazoom', syncChipsYAxis);
+    _chipsDzBound = true;
+}
 
 // ============================================================
 // 技术指标计算模块
@@ -343,15 +377,13 @@ function buildSubIndicatorConfig(indicator, dates, volumes, data, gridIndex, top
  * 根据当前模式调整图表容器高度
  */
 function updateChartContainerHeight() {
-    const chartDom = document.getElementById('kline-chart');
-    if (!chartDom) return;
+    const areaDom = document.getElementById('kline-chart-area');
+    if (!areaDom) return;
     
     if (dualSubMode) {
-        // 双副图：需要更大的容器
-        chartDom.className = 'w-full h-[26rem] sm:h-[32rem] lg:h-[38rem]';
+        areaDom.className = 'relative w-full h-[26rem] sm:h-[32rem] lg:h-[38rem]';
     } else {
-        // 单副图：标准高度
-        chartDom.className = 'w-full h-80 sm:h-96 lg:h-[28rem]';
+        areaDom.className = 'relative w-full h-80 sm:h-96 lg:h-[28rem]';
     }
 }
 
@@ -427,6 +459,16 @@ function initKlineChart(klineData) {
     const sub1Top = isDual ? '50%' : '72%';
     const sub2Top = '74%';
 
+    // 筹码布局预计算
+    const chipsActive = activeChips && chipsDataCache && chipsDataCache.available
+        && chipsDataCache.distribution && chipsDataCache.distribution.length > 0;
+    const chipsRight = chipsActive ? '28%' : 20;
+    let chipsPriceRange = null;
+    if (chipsActive) {
+        chipsPriceRange = getVisiblePriceRange(klineData.data, 50, 100);
+    }
+    _chipsYIdx = -1; // 重置，后面赋值
+
     // ========== 构建基础配置 ==========
     const option = {
         tooltip: {
@@ -439,7 +481,7 @@ function initKlineChart(klineData) {
         },
         legend: { data: [], top: 5, textStyle: { fontSize: 10 } },
         grid: [
-            { left: 60, right: 20, top: mainTop, height: mainHeight }
+            { left: 60, right: chipsRight, top: mainTop, height: mainHeight }
         ],
         xAxis: [{
             type: 'category',
@@ -455,15 +497,16 @@ function initKlineChart(klineData) {
             scale: true,
             gridIndex: 0,
             splitLine: { lineStyle: { color: '#f0f0f0' } },
-            axisLabel: { fontSize: 10, color: '#888' }
+            axisLabel: { fontSize: 10, color: '#888' },
+            ...(chipsActive ? { min: chipsPriceRange.min, max: chipsPriceRange.max } : {})
         }],
         dataZoom: [{
             type: 'inside',
-            xAxisIndex: isDual ? [0, 1, 2] : [0, 1],
+            xAxisIndex: [0],  // 占位，后面动态填充
             start: 50, end: 100
         }, {
             type: 'slider',
-            xAxisIndex: isDual ? [0, 1, 2] : [0, 1],
+            xAxisIndex: [0],  // 占位，后面动态填充
             bottom: 5, height: 14,
             borderColor: 'transparent',
             backgroundColor: '#f5f5f5',
@@ -515,61 +558,59 @@ function initKlineChart(klineData) {
         );
     }
 
-    // ========== 筹码峰（叠加在主图右侧的经典横向筹码分布） ==========
-    if (activeChips && chipsDataCache && chipsDataCache.available && chipsDataCache.distribution && chipsDataCache.distribution.length) {
+    // ========== 筹码峰（独立右侧网格，参考东方财富布局） ==========
+    if (chipsActive) {
         const chips = chipsDataCache.distribution;
-        const perf = chipsDataCache.perf || {};
         const currentPrice = klineData.data[klineData.data.length - 1].close;
         const maxPercent = Math.max.apply(null, chips.map(c => c.percent)) || 1;
         const priceStep = chips.length > 1 ? Math.abs(chips[1].price - chips[0].price) : 1;
-        const PROFIT_COLOR = '#3b82f6';   // 获利盘（现价下方，蓝）
-        const TRAPPED_COLOR = '#f59e0b';  // 套牢盘（现价上方，黄）
+
+        // 筹码网格（右侧独立区域）
+        const cGridIdx = option.grid.length;
+        option.grid.push({ left: '73%', right: 8, top: mainTop, height: mainHeight });
+
+        // 筹码 x 轴（百分比，横向柱长度）
+        const cXIdx = option.xAxis.length;
+        option.xAxis.push({ type: 'value', gridIndex: cGridIdx, show: false, max: maxPercent * 1.15 });
+
+        // 筹码 y 轴（价格，与主图同步）
+        const cYIdx = option.yAxis.length;
+        _chipsYIdx = cYIdx;
+        option.yAxis.push({ type: 'value', gridIndex: cGridIdx, show: false, min: chipsPriceRange.min, max: chipsPriceRange.max });
+
+        // 横向柱状图（custom series）
         option.series.push({
-            name: '筹码分布',
-            type: 'custom',
-            xAxisIndex: 0,
-            yAxisIndex: 0,
-            z: 1,
-            silent: true,
-            // 关键：声明筹码数据不映射到任何坐标轴，避免价格数据(0~历史最高)污染 y 轴自适应范围；
-            // renderItem 内部用闭包取价 + api.coord 定位，不依赖该映射
-            encode: { x: -1, y: -1 },
-            renderItem: function (params, api) {
+            name: '筹码分布', type: 'custom',
+            xAxisIndex: cXIdx, yAxisIndex: cYIdx,
+            silent: true, encode: { x: -1, y: -1 },
+            renderItem: function(params, api) {
                 const cs = params.coordSys;
+                if (!cs) return { type: 'group', children: [] };
                 const price = chips[params.dataIndex].price;
                 const percent = chips[params.dataIndex].percent;
-                const yPx = api.coord([0, price])[1];
-                // 超出主图可视价格区间的筹码不绘制，避免溢出到副图
-                if (yPx < cs.y - 1 || yPx > cs.y + cs.height + 1) return { type: 'group', children: [] };
-                const barH = Math.max(1, Math.abs(api.coord([0, price + priceStep])[1] - yPx) + 0.5);
-                const maxBarW = cs.width * 0.30;  // 筹码占主图右侧 30%
-                const barW = Math.max(1, (percent / maxPercent) * maxBarW);
+                const origin = api.coord([0, price]);
+                const end = api.coord([percent, price]);
+                const nextY = api.coord([0, price + priceStep]);
+                const barH = Math.max(1, Math.abs(origin[1] - nextY[1]) + 0.5);
+                const barW = Math.max(1, end[0] - origin[0]);
                 return {
                     type: 'rect',
-                    shape: { x: cs.x + cs.width - barW, y: yPx - barH / 2, width: barW, height: barH },
-                    style: { fill: price >= currentPrice ? TRAPPED_COLOR : PROFIT_COLOR, opacity: 0.7 },
+                    shape: { x: origin[0], y: origin[1] - barH / 2, width: barW, height: barH },
+                    style: { fill: price < currentPrice ? '#ef4444' : '#22c55e', opacity: 0.85 },
                     silent: true
                 };
             },
             data: chips.map(c => c.price)
         });
-        // 平均成本线（直接在图上做价格提示）
-        if (perf.weight_avg) {
-            option.series[0].markLine = {
-                silent: true,
-                symbol: 'none',
-                lineStyle: { color: '#8b5cf6', type: 'dashed', width: 1.5 },
-                label: { formatter: '平均成本 ' + perf.weight_avg, fontSize: 9, color: '#8b5cf6', position: 'insideEndTop' },
-                data: [{ yAxis: perf.weight_avg }]
-            };
-        }
     }
 
     // ========== 副图1 ==========
+    const sub1Idx = option.grid.length; // 动态索引，兼容筹码峰偏移
     const sub1 = buildSubIndicatorConfig(
         activeSubIndicator, dates, volumes, klineData.data,
-        1, sub1Top, subHeight
+        sub1Idx, sub1Top, subHeight
     );
+    if (chipsActive) sub1.grid.right = chipsRight;
     option.grid.push(sub1.grid);
     option.xAxis.push(sub1.xAxis);
     option.yAxis.push(sub1.yAxis);
@@ -578,10 +619,12 @@ function initKlineChart(klineData) {
 
     // ========== 副图2（双副图模式） ==========
     if (isDual) {
+        const sub2Idx = option.grid.length; // 动态索引
         const sub2 = buildSubIndicatorConfig(
             activeSubIndicator2, dates, volumes, klineData.data,
-            2, sub2Top, subHeight
+            sub2Idx, sub2Top, subHeight
         );
+        if (chipsActive) sub2.grid.right = chipsRight;
         option.grid.push(sub2.grid);
         option.xAxis.push(sub2.xAxis);
         option.yAxis.push(sub2.yAxis);
@@ -589,7 +632,16 @@ function initKlineChart(klineData) {
         option.legend.data.push(...sub2.legendItems);
     }
 
+    // ========== 动态修正 dataZoom xAxisIndex ==========
+    // 只关联 category 类型的 xAxis（跳过筹码峰的 value 轴）
+    const categoryXIndices = [];
+    option.xAxis.forEach((ax, i) => { if (ax.type === 'category') categoryXIndices.push(i); });
+    option.dataZoom.forEach(dz => { dz.xAxisIndex = categoryXIndices; });
+
     window.klineChart.setOption(option, { notMerge: true });
+
+    // 绑定 datazoom 同步（筹码 y 轴跟随主图缩放）
+    if (chipsActive) bindChipsDataZoom();
 }
 
 // ============================================================
@@ -616,48 +668,76 @@ async function loadChips() {
 }
 
 /**
- * 更新筹码信息栏（含数据更新时间提示）
+ * 更新筹码统计面板（右侧独立区域，参考东方财富布局）
  */
 function updateChipsInfo() {
-    const box = document.getElementById('chips-info');
-    if (!box) return;
+    const panel = document.getElementById('chips-stats-panel');
+    if (!panel) return;
 
     if (!activeChips) {
-        box.classList.add('hidden');
-        box.innerHTML = '';
+        panel.classList.add('hidden');
+        panel.innerHTML = '';
         return;
     }
 
-    box.classList.remove('hidden');
+    // 动态调整面板 top：对齐副图起始位置
+    const isDual = dualSubMode && activeSubIndicator2 !== activeSubIndicator;
+    panel.style.top = isDual ? '48%' : '68%';
+    panel.classList.remove('hidden');
 
-    // 加载中
     if (chipsLoading || chipsDataCache === null) {
-        box.innerHTML = '<div class="text-xs text-gray-400">筹码数据加载中…</div>';
+        panel.innerHTML = '<div class="text-gray-400 text-center mt-4">加载中…</div>';
         return;
     }
-
-    // 暂无数据
     if (!chipsDataCache.available) {
-        box.innerHTML = '<div class="text-xs text-gray-400">📌 该股票暂无筹码数据（筹码数据自 2018 年起提供，每日 18:00-19:00 更新）</div>';
+        panel.innerHTML = '<div class="text-gray-400 text-center mt-4">暂无筹码数据<br><span class="text-[10px]">自 2018 年起提供</span></div>';
         return;
     }
 
     const p = chipsDataCache.perf || {};
     const d = chipsDataCache.trade_date || '';
-    const dateStr = d && d.length === 8 ? `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}` : '--';
-    const val = (v, suffix = '') => (v != null ? v + suffix : '--');
+    const dateStr = d && d.length === 8 ? `${d.slice(0,4)}-${d.slice(4,6)}-${d.slice(6,8)}` : '--';
+    const v = (x, s='') => x != null ? x + s : '--';
 
-    box.innerHTML = `
-        <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-600">
-            <span>获利比例 <b class="text-blue-600 tabular-nums">${val(p.winner_rate, '%')}</b></span>
-            <span>平均成本 <b class="text-purple-600 tabular-nums">${val(p.weight_avg)}</b></span>
-            <span>90%筹码集中 <b class="text-gray-800 tabular-nums">${val(p.cost_5pct)} ~ ${val(p.cost_95pct)}</b></span>
-            <span class="flex items-center gap-1">
-                <i class="w-2 h-2 rounded-sm inline-block" style="background:#3b82f6"></i>获利
-                <i class="w-2 h-2 rounded-sm inline-block ml-1" style="background:#f59e0b"></i>套牢
-            </span>
+    // 集中度计算
+    const is90 = chipsConcMode === 90;
+    const cLo = is90 ? p.cost_5pct : p.cost_15pct;
+    const cHi = is90 ? p.cost_95pct : p.cost_85pct;
+    const cMid = p.cost_50pct;
+    const conc = (cLo != null && cHi != null && cMid) ? ((cHi - cLo) / cMid * 100).toFixed(2) : null;
+
+    const btn90 = is90 ? 'bg-gray-700 text-white' : 'bg-gray-200 text-gray-600 hover:bg-gray-300';
+    const btn70 = !is90 ? 'bg-gray-700 text-white' : 'bg-gray-200 text-gray-600 hover:bg-gray-300';
+
+    panel.innerHTML = `
+        <div class="space-y-2">
+            <!-- 图例 -->
+            <div class="flex items-center gap-3 text-[11px]">
+                <span class="flex items-center gap-1"><i class="w-2.5 h-2.5 rounded-sm inline-block" style="background:#22c55e"></i>套牢</span>
+                <span class="flex items-center gap-1"><i class="w-2.5 h-2.5 rounded-sm inline-block" style="background:#ef4444"></i>获利</span>
+            </div>
+            <!-- 核心指标 -->
+            <div class="space-y-1.5">
+                <div class="flex justify-between"><span class="text-gray-500">获利比例</span><b class="text-red-500 tabular-nums">${v(p.winner_rate,'%')}</b></div>
+                <div class="flex justify-between"><span class="text-gray-500">平均成本</span><b class="text-purple-600 tabular-nums">${v(p.weight_avg)}</b></div>
+            </div>
+            <!-- 集中度切换 -->
+            <div class="flex gap-1">
+                <button class="chips-conc-btn btn-press flex-1 py-1 text-[11px] rounded ${btn90}" data-mode="90">90%筹码</button>
+                <button class="chips-conc-btn btn-press flex-1 py-1 text-[11px] rounded ${btn70}" data-mode="70">70%筹码</button>
+            </div>
+            <div class="space-y-1.5">
+                <div class="flex justify-between"><span class="text-gray-500">价格区间</span><b class="tabular-nums">${v(cLo)}–${v(cHi)}</b></div>
+                <div class="flex justify-between"><span class="text-gray-500">集中度</span><b class="tabular-nums">${conc != null ? conc+'%' : '--'}</b></div>
+            </div>
+            <!-- 日期提示 -->
+            <div class="pt-1 border-t border-gray-200">
+                <div class="flex justify-between text-[10px] text-gray-400">
+                    <span title="筹码数据每日 18:00-19:00 更新">说明 ⓘ</span>
+                    <span class="tabular-nums">${dateStr}</span>
+                </div>
+            </div>
         </div>
-        <div class="text-[11px] text-gray-400 mt-1">📌 筹码数据每日 18:00-19:00 更新 · 数据日期 ${dateStr}</div>
     `;
 }
 
@@ -744,13 +824,20 @@ document.addEventListener('DOMContentLoaded', function() {
         btn.classList.toggle('text-gray-600', !activeChips);
 
         if (activeChips && chipsDataCache === null) {
-            // 首次开启：拉取数据（拉完自动渲染 + 更新信息栏）
             updateChipsInfo();
             loadChips();
         } else {
             if (klineDataCache) initKlineChart(klineDataCache);
             updateChipsInfo();
         }
+    });
+
+    // 筹码集中度切换（90% / 70%）
+    document.addEventListener('click', function(e) {
+        const btn = e.target.closest('.chips-conc-btn');
+        if (!btn) return;
+        chipsConcMode = parseInt(btn.dataset.mode) || 90;
+        updateChipsInfo();
     });
 
     // 双副图开关
