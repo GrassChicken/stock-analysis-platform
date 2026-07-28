@@ -31,11 +31,15 @@
             <button class="ma-toggle btn-press px-2 py-1 text-xs rounded bg-gray-100 text-gray-600 hover:bg-gray-200" data-ma="20">MA20</button>
             <button class="ma-toggle btn-press px-2 py-1 text-xs rounded bg-gray-100 text-gray-600 hover:bg-gray-200" data-ma="60">MA60</button>
             <button class="boll-toggle btn-press px-2 py-1 text-xs rounded bg-gray-100 text-gray-600 hover:bg-gray-200">BOLL</button>
+            <button class="chips-toggle btn-press px-2 py-1 text-xs rounded bg-gray-100 text-gray-600 hover:bg-gray-200">筹码</button>
         </div>
     </div>
     
     <!-- 图表容器（高度动态调整） -->
     <div id="kline-chart" class="w-full h-80 sm:h-96 lg:h-[28rem]"></div>
+
+    <!-- 筹码峰信息栏（开启筹码后显示） -->
+    <div id="chips-info" class="hidden mt-2 px-1"></div>
     
     <!-- 副图控制区域 -->
     <div class="mt-2 space-y-1">

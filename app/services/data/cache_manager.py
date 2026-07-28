@@ -18,6 +18,7 @@ CACHE_TTL = {
     'finance': 3600,      # 财务数据缓存 1h
     'stock_list': 86400,  # 股票列表缓存 24h
     'daily_basic': 60,    # 每日指标缓存 1min
+    'chips': 1800,        # 筹码分布缓存 30min（数据每日18-19点更新，无需频繁拉取）
     'akshare': 60,        # AKShare 数据缓存 1min
     'score': 600,         # 综合评分缓存 10min
 }

@@ -340,6 +340,94 @@ class StockService:
             logger.error(f"获取 K 线失败 {ts_code}: {e}")
             return []
 
+    def get_chips(self, code: str) -> Dict[str, Any]:
+        """
+        获取筹码分布数据（每日 18-19 点更新当日数据）
+
+        返回最新交易日的：
+        - distribution: [{price, percent}, ...] 各价位筹码占比（画筹码峰用）
+        - perf: 获利比例、平均成本、成本分位数等统计指标
+        - trade_date: 数据日期 YYYYMMDD
+
+        Args:
+            code: 股票代码
+
+        Returns:
+            dict，无数据时 {'available': False}
+        """
+        ts_code = self._format_code(code)
+
+        cache_key = f"chips:{ts_code}"
+        cached_result = cache_get(cache_key)
+        if cached_result is not None:
+            return cached_result
+
+        pro = self._get_pro()
+        if not pro:
+            return {'available': False}
+
+        try:
+            # 取近 15 天数据，再筛出最新交易日（兼容周末/节假日）
+            end_date = datetime.now().strftime('%Y%m%d')
+            start_date = (datetime.now() - timedelta(days=15)).strftime('%Y%m%d')
+
+            chips_df = pro.cyq_chips(ts_code=ts_code, start_date=start_date, end_date=end_date)
+            time.sleep(0.3)  # 频率限制
+            perf_df = pro.cyq_perf(ts_code=ts_code, start_date=start_date, end_date=end_date)
+            time.sleep(0.3)
+
+            if chips_df is None or chips_df.empty:
+                logger.warning(f"筹码分布数据为空: {ts_code}")
+                return {'available': False}
+
+            # 最新交易日的筹码分布
+            latest_date = str(chips_df['trade_date'].astype(str).max())
+            day_df = chips_df[chips_df['trade_date'].astype(str) == latest_date]
+            distribution = sorted(
+                [
+                    {'price': round(float(r['price']), 2), 'percent': round(float(r['percent']), 4)}
+                    for _, r in day_df.iterrows()
+                ],
+                key=lambda x: x['price']
+            )
+
+            # 筹码统计指标
+            perf = {}
+            if perf_df is not None and not perf_df.empty:
+                perf_df = perf_df.copy()
+                perf_df['trade_date'] = perf_df['trade_date'].astype(str)
+                prow = perf_df[perf_df['trade_date'] == latest_date]
+                if prow.empty:
+                    prow = perf_df.sort_values('trade_date', ascending=False).head(1)
+                r = prow.iloc[0]
+
+                def _f(val):
+                    try:
+                        return round(float(val), 2)
+                    except (TypeError, ValueError):
+                        return None
+
+                perf = {
+                    'winner_rate': _f(r.get('winner_rate')),   # 获利比例
+                    'weight_avg': _f(r.get('weight_avg')),      # 加权平均成本
+                    'cost_50pct': _f(r.get('cost_50pct')),      # 50分位成本
+                    'cost_5pct': _f(r.get('cost_5pct')),        # 5分位成本（90%集中区间下沿）
+                    'cost_95pct': _f(r.get('cost_95pct')),      # 95分位成本（90%集中区间上沿）
+                }
+
+            result = {
+                'available': True,
+                'trade_date': latest_date,
+                'distribution': distribution,
+                'perf': perf,
+            }
+            cache_set(cache_key, result, timeout=CACHE_TTL['chips'])
+            logger.info(f"✓ 筹码数据获取成功 {ts_code}: {len(distribution)} 个价位, 数据日期 {latest_date}")
+            return result
+        except Exception as e:
+            logger.error(f"获取筹码数据失败 {ts_code}: {e}")
+            return {'available': False}
+
     def _aggregate_weekly(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         将日K数据聚合为周K

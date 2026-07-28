@@ -76,6 +76,16 @@ def get_daily_basic(code: str):
     return jsonify(data)
 
 
+@api_bp.route("/stock/<code>/chips")
+@api_error_handler
+def get_chips(code: str):
+    """筹码分布（每日18-19点更新当日数据）"""
+    validate_stock_code(code)
+    data = stock_service.get_chips(code)
+    # 无数据也返回 200，由前端根据 available 优雅提示
+    return jsonify(data)
+
+
 # ==================== 分析 ====================
 
 from app.extensions import cache as flask_cache
@@ -338,7 +348,7 @@ def add_watchlist():
         # 检查是否已存在
         existing = Watchlist.query.filter_by(code=code).first()
         if existing:
-            return jsonify({"message": "已在自选股中", "code": code}, code=200)
+            return jsonify({"message": "已在自选股中", "code": code}), 200
         
         # 创建新记录
         item = Watchlist(code=code, name=name, group_name=group_name)
@@ -346,7 +356,7 @@ def add_watchlist():
         db.session.commit()
         
         logger.info(f"添加自选股: {code} {name}")
-        return jsonify({"message": "已添加自选股", "code": code, "name": name}, code=201)
+        return jsonify({"message": "已添加自选股", "code": code, "name": name}), 201
     except Exception as e:
         db.session.rollback()
         logger.error(f"添加自选股失败: {e}")

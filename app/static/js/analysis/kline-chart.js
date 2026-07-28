@@ -22,6 +22,11 @@ let activeSubIndicator = 'volume';   // 副图1：成交量
 let dualSubMode = false;              // 双副图模式开关
 let activeSubIndicator2 = 'macd';    // 副图2：MACD（默认）
 
+// 筹码峰状态
+let activeChips = false;             // 筹码峰开关
+let chipsDataCache = null;           // 筹码数据 {available, trade_date, distribution, perf}
+let chipsLoading = false;
+
 // ============================================================
 // 技术指标计算模块
 // ============================================================
@@ -510,6 +515,56 @@ function initKlineChart(klineData) {
         );
     }
 
+    // ========== 筹码峰（叠加在主图右侧的经典横向筹码分布） ==========
+    if (activeChips && chipsDataCache && chipsDataCache.available && chipsDataCache.distribution && chipsDataCache.distribution.length) {
+        const chips = chipsDataCache.distribution;
+        const perf = chipsDataCache.perf || {};
+        const currentPrice = klineData.data[klineData.data.length - 1].close;
+        const maxPercent = Math.max.apply(null, chips.map(c => c.percent)) || 1;
+        const priceStep = chips.length > 1 ? Math.abs(chips[1].price - chips[0].price) : 1;
+        const PROFIT_COLOR = '#3b82f6';   // 获利盘（现价下方，蓝）
+        const TRAPPED_COLOR = '#f59e0b';  // 套牢盘（现价上方，黄）
+        option.series.push({
+            name: '筹码分布',
+            type: 'custom',
+            xAxisIndex: 0,
+            yAxisIndex: 0,
+            z: 1,
+            silent: true,
+            // 关键：声明筹码数据不映射到任何坐标轴，避免价格数据(0~历史最高)污染 y 轴自适应范围；
+            // renderItem 内部用闭包取价 + api.coord 定位，不依赖该映射
+            encode: { x: -1, y: -1 },
+            renderItem: function (params, api) {
+                const cs = params.coordSys;
+                const price = chips[params.dataIndex].price;
+                const percent = chips[params.dataIndex].percent;
+                const yPx = api.coord([0, price])[1];
+                // 超出主图可视价格区间的筹码不绘制，避免溢出到副图
+                if (yPx < cs.y - 1 || yPx > cs.y + cs.height + 1) return { type: 'group', children: [] };
+                const barH = Math.max(1, Math.abs(api.coord([0, price + priceStep])[1] - yPx) + 0.5);
+                const maxBarW = cs.width * 0.30;  // 筹码占主图右侧 30%
+                const barW = Math.max(1, (percent / maxPercent) * maxBarW);
+                return {
+                    type: 'rect',
+                    shape: { x: cs.x + cs.width - barW, y: yPx - barH / 2, width: barW, height: barH },
+                    style: { fill: price >= currentPrice ? TRAPPED_COLOR : PROFIT_COLOR, opacity: 0.7 },
+                    silent: true
+                };
+            },
+            data: chips.map(c => c.price)
+        });
+        // 平均成本线（直接在图上做价格提示）
+        if (perf.weight_avg) {
+            option.series[0].markLine = {
+                silent: true,
+                symbol: 'none',
+                lineStyle: { color: '#8b5cf6', type: 'dashed', width: 1.5 },
+                label: { formatter: '平均成本 ' + perf.weight_avg, fontSize: 9, color: '#8b5cf6', position: 'insideEndTop' },
+                data: [{ yAxis: perf.weight_avg }]
+            };
+        }
+    }
+
     // ========== 副图1 ==========
     const sub1 = buildSubIndicatorConfig(
         activeSubIndicator, dates, volumes, klineData.data,
@@ -535,6 +590,75 @@ function initKlineChart(klineData) {
     }
 
     window.klineChart.setOption(option, { notMerge: true });
+}
+
+// ============================================================
+// 筹码峰数据加载与信息栏
+// ============================================================
+
+/**
+ * 加载筹码分布数据
+ */
+async function loadChips() {
+    if (chipsLoading) return;
+    chipsLoading = true;
+    try {
+        const res = await fetch(`/api/stock/${STOCK_CODE}/chips`);
+        chipsDataCache = await res.json();
+    } catch (err) {
+        console.error('[kline-chart] 加载筹码数据失败:', err);
+        chipsDataCache = { available: false };
+    } finally {
+        chipsLoading = false;
+    }
+    if (klineDataCache) initKlineChart(klineDataCache);
+    updateChipsInfo();
+}
+
+/**
+ * 更新筹码信息栏（含数据更新时间提示）
+ */
+function updateChipsInfo() {
+    const box = document.getElementById('chips-info');
+    if (!box) return;
+
+    if (!activeChips) {
+        box.classList.add('hidden');
+        box.innerHTML = '';
+        return;
+    }
+
+    box.classList.remove('hidden');
+
+    // 加载中
+    if (chipsLoading || chipsDataCache === null) {
+        box.innerHTML = '<div class="text-xs text-gray-400">筹码数据加载中…</div>';
+        return;
+    }
+
+    // 暂无数据
+    if (!chipsDataCache.available) {
+        box.innerHTML = '<div class="text-xs text-gray-400">📌 该股票暂无筹码数据（筹码数据自 2018 年起提供，每日 18:00-19:00 更新）</div>';
+        return;
+    }
+
+    const p = chipsDataCache.perf || {};
+    const d = chipsDataCache.trade_date || '';
+    const dateStr = d && d.length === 8 ? `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}` : '--';
+    const val = (v, suffix = '') => (v != null ? v + suffix : '--');
+
+    box.innerHTML = `
+        <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-600">
+            <span>获利比例 <b class="text-blue-600 tabular-nums">${val(p.winner_rate, '%')}</b></span>
+            <span>平均成本 <b class="text-purple-600 tabular-nums">${val(p.weight_avg)}</b></span>
+            <span>90%筹码集中 <b class="text-gray-800 tabular-nums">${val(p.cost_5pct)} ~ ${val(p.cost_95pct)}</b></span>
+            <span class="flex items-center gap-1">
+                <i class="w-2 h-2 rounded-sm inline-block" style="background:#3b82f6"></i>获利
+                <i class="w-2 h-2 rounded-sm inline-block ml-1" style="background:#f59e0b"></i>套牢
+            </span>
+        </div>
+        <div class="text-[11px] text-gray-400 mt-1">📌 筹码数据每日 18:00-19:00 更新 · 数据日期 ${dateStr}</div>
+    `;
 }
 
 // ============================================================
@@ -605,6 +729,27 @@ document.addEventListener('DOMContentLoaded', function() {
             e.target.classList.remove('bg-gray-100', 'text-gray-600');
             activeSubIndicator2 = e.target.dataset.indicator;
             if (klineDataCache) initKlineChart(klineDataCache);
+        }
+    });
+
+    // 筹码峰开关
+    document.addEventListener('click', function(e) {
+        const btn = e.target.closest('.chips-toggle');
+        if (!btn) return;
+
+        activeChips = !activeChips;
+        btn.classList.toggle('bg-primary-500', activeChips);
+        btn.classList.toggle('text-white', activeChips);
+        btn.classList.toggle('bg-gray-100', !activeChips);
+        btn.classList.toggle('text-gray-600', !activeChips);
+
+        if (activeChips && chipsDataCache === null) {
+            // 首次开启：拉取数据（拉完自动渲染 + 更新信息栏）
+            updateChipsInfo();
+            loadChips();
+        } else {
+            if (klineDataCache) initKlineChart(klineDataCache);
+            updateChipsInfo();
         }
     });
 

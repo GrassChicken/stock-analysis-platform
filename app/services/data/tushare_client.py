@@ -392,6 +392,63 @@ class TushareClient:
             return {}
 
 
+    def get_cyq_chips(self, ts_code: str, start_date: str = None, end_date: str = None) -> pd.DataFrame:
+        """
+        获取每日筹码分布（cyq_chips）
+
+        Args:
+            ts_code: 股票代码
+            start_date: 开始日期 YYYYMMDD
+            end_date: 结束日期 YYYYMMDD
+
+        Returns:
+            筹码分布 DataFrame（ts_code, trade_date, price, percent）
+        """
+        if not self.pro:
+            return pd.DataFrame()
+
+        ts_code = self._format_code(ts_code)
+
+        try:
+            df = self.pro.cyq_chips(
+                ts_code=ts_code,
+                start_date=start_date,
+                end_date=end_date
+            )
+            return df if df is not None else pd.DataFrame()
+        except Exception as e:
+            logger.error(f"获取筹码分布失败 {ts_code}: {e}")
+            return pd.DataFrame()
+
+    def get_cyq_perf(self, ts_code: str, start_date: str = None, end_date: str = None) -> pd.DataFrame:
+        """
+        获取每日筹码统计（cyq_perf：平均成本、获利比例、成本分位数）
+
+        Args:
+            ts_code: 股票代码
+            start_date: 开始日期 YYYYMMDD
+            end_date: 结束日期 YYYYMMDD
+
+        Returns:
+            筹码统计 DataFrame
+        """
+        if not self.pro:
+            return pd.DataFrame()
+
+        ts_code = self._format_code(ts_code)
+
+        try:
+            df = self.pro.cyq_perf(
+                ts_code=ts_code,
+                start_date=start_date,
+                end_date=end_date
+            )
+            return df if df is not None else pd.DataFrame()
+        except Exception as e:
+            logger.error(f"获取筹码统计失败 {ts_code}: {e}")
+            return pd.DataFrame()
+
+
 # 全局实例（需要延迟初始化）
 _tushare_client = None
 

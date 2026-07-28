@@ -235,6 +235,12 @@ async function toggleWatchlist(code, name, button) {
         // 移除自选
         await removeFromWatchlist(code, button);
     } else {
+        // 名称兑底：深度分析页按钮传空 name 时，从页面已渲染的股票名取（排除仍等于代码的初始占位）
+        if (!name) {
+            const el = document.getElementById('stock-name');
+            const t = el ? el.textContent.trim() : '';
+            if (t && t !== code) name = t;
+        }
         // 添加自选
         const success = await addToWatchlist(code, name);
         if (success) {
