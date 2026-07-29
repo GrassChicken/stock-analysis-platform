@@ -462,7 +462,7 @@ function initKlineChart(klineData) {
     // 筹码布局预计算
     const chipsActive = activeChips && chipsDataCache && chipsDataCache.available
         && chipsDataCache.distribution && chipsDataCache.distribution.length > 0;
-    const chipsRight = chipsActive ? '28%' : 20;
+    const chipsRight = chipsActive ? '35%' : 20;
     let chipsPriceRange = null;
     if (chipsActive) {
         chipsPriceRange = getVisiblePriceRange(klineData.data, 50, 100);
@@ -562,16 +562,26 @@ function initKlineChart(klineData) {
     if (chipsActive) {
         const chips = chipsDataCache.distribution;
         const currentPrice = klineData.data[klineData.data.length - 1].close;
-        const maxPercent = Math.max.apply(null, chips.map(c => c.percent)) || 1;
+        // 健壮最大值：忽略非有限值，避免极端数据下 max 退化
+        // 且不做余量缩放——最长柱顶满筹码区右边缘，
+        // 否则平台型筹码（密集区多行≈max）会在右侧吊一条空白，看起来像被截断
+        const maxPercent = (function(){
+            let m = 0;
+            for (let i = 0; i < chips.length; i++) {
+                const p = chips[i].percent;
+                if (typeof p === 'number' && isFinite(p) && p > m) m = p;
+            }
+            return m || 1;
+        })();
         const priceStep = chips.length > 1 ? Math.abs(chips[1].price - chips[0].price) : 1;
 
         // 筹码网格（右侧独立区域）
         const cGridIdx = option.grid.length;
-        option.grid.push({ left: '73%', right: 8, top: mainTop, height: mainHeight });
+        option.grid.push({ left: '65%', right: 6, top: mainTop, height: mainHeight });
 
         // 筹码 x 轴（百分比，横向柱长度）
         const cXIdx = option.xAxis.length;
-        option.xAxis.push({ type: 'value', gridIndex: cGridIdx, show: false, max: maxPercent * 1.15 });
+        option.xAxis.push({ type: 'value', gridIndex: cGridIdx, show: false, max: maxPercent });
 
         // 筹码 y 轴（价格，与主图同步）
         const cYIdx = option.yAxis.length;
@@ -589,7 +599,7 @@ function initKlineChart(klineData) {
                 const price = chips[params.dataIndex].price;
                 const percent = chips[params.dataIndex].percent;
                 const origin = api.coord([0, price]);
-                const end = api.coord([percent, price]);
+                const end = api.coord([percent || 0, price]);
                 const nextY = api.coord([0, price + priceStep]);
                 const barH = Math.max(1, Math.abs(origin[1] - nextY[1]) + 0.5);
                 const barW = Math.max(1, end[0] - origin[0]);
@@ -680,9 +690,14 @@ function updateChipsInfo() {
         return;
     }
 
-    // 动态调整面板 top：对齐副图起始位置
+    // 动态调整面板位置：紧贴筹码峰底部下方，避免遮挡筹码峰
     const isDual = dualSubMode && activeSubIndicator2 !== activeSubIndicator;
-    panel.style.top = isDual ? '48%' : '68%';
+    const areaEl = document.getElementById('kline-chart-area');
+    const H = areaEl ? areaEl.clientHeight : 400;
+    const mainH = isDual ? 0.38 : 0.55;            // 与 initKlineChart 的 mainHeight 保持一致
+    const chipsBottomPx = 40 + mainH * H;          // mainTop(40) + 主图/筹码高度
+    panel.style.top = (chipsBottomPx + 12) + 'px';
+    panel.style.bottom = '26px';                    // 给 dataZoom slider 留出空间
     panel.classList.remove('hidden');
 
     if (chipsLoading || chipsDataCache === null) {
