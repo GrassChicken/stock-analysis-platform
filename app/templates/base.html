@@ -26,17 +26,19 @@
     <script src="https://unpkg.com/htmx.org@1.9.12"></script>
     <script>
         // 配置 HTMX 正确处理 UTF-8 编码
-        htmx.config.defaultEncoding = 'utf-8';
-        htmx.config.ajaxWithCredentials = false;
-        // 确保请求参数正确编码
-        document.body.addEventListener('htmx:configRequest', function(event) {
-            // 强制使用 UTF-8 编码
-            event.detail.parameters = Object.fromEntries(
-                Object.entries(event.detail.parameters).map(([key, value]) => [
-                    key, 
-                    typeof value === 'string' ? encodeURIComponent(value) : value
-                ])
-            );
+        document.addEventListener('DOMContentLoaded', function() {
+            htmx.config.defaultEncoding = 'utf-8';
+            htmx.config.ajaxWithCredentials = false;
+            // 确保请求参数正确编码
+            document.body.addEventListener('htmx:configRequest', function(event) {
+                // 强制使用 UTF-8 编码
+                event.detail.parameters = Object.fromEntries(
+                    Object.entries(event.detail.parameters).map(([key, value]) => [
+                        key,
+                        typeof value === 'string' ? encodeURIComponent(value) : value
+                    ])
+                );
+            });
         });
     </script>
 

@@ -16,7 +16,8 @@
  */
 
 let radarChart = null;
-let klineChart = null;
+// 注意：不要用 let klineChart —— 会遮蔽 window.klineChart（kline-chart.js 设置的）
+// K线图实例统一通过 window.klineChart 访问
 
 document.addEventListener('DOMContentLoaded', function() {
     // 异步加载各个模块
@@ -56,6 +57,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // 窗口 resize 时，图表自适应
     window.addEventListener('resize', function() {
         if (radarChart) radarChart.resize();
-        if (klineChart) klineChart.resize();
+        if (window.klineChart) window.klineChart.resize();
     });
 });
