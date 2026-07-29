@@ -594,16 +594,16 @@ function initKlineChart(klineData) {
         _chipsYIdx = cYIdx;
         option.yAxis.push({ type: 'value', gridIndex: cGridIdx, show: false, min: chipsPriceRange.min, max: chipsPriceRange.max });
 
-        // 横向柱状图（custom series）
+         // 横向柱状图（custom series）
         option.series.push({
             name: '筹码分布', type: 'custom',
             xAxisIndex: cXIdx, yAxisIndex: cYIdx,
-            silent: true, encode: { x: -1, y: -1 },
+            silent: true, encode: { x: 0, y: 1 },
             renderItem: function(params, api) {
                 const cs = params.coordSys;
                 if (!cs) return { type: 'group', children: [] };
-                const price = chips[params.dataIndex].price;
-                const percent = chips[params.dataIndex].percent;
+                const price = api.value(1);
+                const percent = api.value(0);
                 const origin = api.coord([0, price]);
                 const end = api.coord([percent || 0, price]);
                 const nextY = api.coord([0, price + priceStep]);
@@ -616,7 +616,7 @@ function initKlineChart(klineData) {
                     silent: true
                 };
             },
-            data: chips.map(c => c.price)
+            data: chips.map(c => [c.percent, c.price])
         });
     }
 
