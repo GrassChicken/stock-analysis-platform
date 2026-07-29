@@ -576,8 +576,14 @@ function initKlineChart(klineData) {
         const priceStep = chips.length > 1 ? Math.abs(chips[1].price - chips[0].price) : 1;
 
         // 筹码网格（右侧独立区域）
+        // show+淡底色：让整块筹码矩形有"画布感"，
+        // 比例缩放产生的右侧留白看起来是背景而非"被截断"
         const cGridIdx = option.grid.length;
-        option.grid.push({ left: '65%', right: 6, top: mainTop, height: mainHeight });
+        option.grid.push({
+            left: '65%', right: 6, top: mainTop, height: mainHeight,
+            show: true, backgroundColor: 'rgba(15, 23, 42, 0.025)',
+            borderColor: 'rgba(15, 23, 42, 0.06)', borderWidth: 1
+        });
 
         // 筹码 x 轴（百分比，横向柱长度）
         const cXIdx = option.xAxis.length;
@@ -891,6 +897,33 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 });
+
+// ============================================================
+// 画布尺寸自适应（ResizeObserver + window resize）
+// ============================================================
+// ECharts init 时把 canvas style.width/height 设为固定像素。
+// 若容器后来变宽（暗色主题扩展注入 CSS、web 字体 reflow、
+// 侧边栏折叠等），canvas 不会自动跟着变，右侧空一条。
+// ResizeObserver 能捕获任何容器尺寸变化并触发 resize()。
+(function setupChartResize() {
+    function doResize() {
+        if (window.klineChart) window.klineChart.resize();
+    }
+    // 优先 ResizeObserver（捕获非 window-resize 的容器变化）
+    if (typeof ResizeObserver !== 'undefined') {
+        const ro = new ResizeObserver(function(entries) {
+            // 防抖：一帧内只 resize 一次
+            requestAnimationFrame(doResize);
+        });
+        // 等 DOM 就绪后观察容器
+        document.addEventListener('DOMContentLoaded', function() {
+            const el = document.getElementById('kline-chart');
+            if (el) ro.observe(el);
+        });
+    }
+    // 兜底：window resize
+    window.addEventListener('resize', doResize);
+})();
 
 /**
  * 更新副图2按钮的选中状态
