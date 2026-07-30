@@ -174,13 +174,16 @@ function renderTechnical(data) {
     <div class="mt-4 bg-gray-50 rounded-lg p-4">
         <h4 class="text-sm font-semibold text-gray-600 mb-3">🕯️ K线形态识别</h4>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            ${patterns.map(p => `
+            ${patterns.map(p => {
+                const reliabilityText = p.reliability === 'high' ? '高' : p.reliability === 'medium' ? '中' : '低';
+                return `
                 <div class="bg-white rounded p-3 border-l-4 ${p.signal === 'bullish' ? 'border-rise' : p.signal === 'bearish' ? 'border-fall' : 'border-yellow-400'}">
                     <div class="font-semibold text-sm">${p.name}</div>
                     <div class="text-xs text-gray-500 mt-1">${p.desc}</div>
-                    <div class="text-xs mt-1 ${p.signal === 'bullish' ? 'text-rise' : p.signal === 'bearish' ? 'text-fall' : 'text-yellow-600'}">${p.signal === 'bullish' ? '看多' : p.signal === 'bearish' ? '看空' : '中性'} · 可靠性: ${p.reliability}</div>
+                    <div class="text-xs mt-1 ${p.signal === 'bullish' ? 'text-rise' : p.signal === 'bearish' ? 'text-fall' : 'text-yellow-600'}">${p.signal === 'bullish' ? '看多' : p.signal === 'bearish' ? '看空' : '中性'} · 可靠性: ${reliabilityText}</div>
                 </div>
-            `).join('')}
+                `;
+            }).join('')}
         </div>
     </div>
     ` : ''}
