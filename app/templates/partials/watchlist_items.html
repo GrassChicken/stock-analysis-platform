@@ -2,16 +2,27 @@
 <div class="space-y-3">
     {% for item in items %}
     <div class="watchlist-item flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 bg-gradient-to-r from-gray-50 to-white hover:from-blue-50 hover:to-blue-100 rounded-xl transition-all duration-300 border border-transparent hover:border-blue-200"
-         data-code="{{ item.code }}">
+         data-code="{{ item.code }}"
+         data-group="{{ item.group }}">
         <!-- 左侧：股票信息 -->
         <a href="/stock/{{ item.code }}" class="flex-1 flex items-center space-x-4 min-w-0 mb-2 sm:mb-0">
             <div class="flex-1 min-w-0">
-                <div class="flex items-center space-x-2">
+                <div class="flex items-center space-x-2 flex-wrap gap-y-1">
                     <span class="font-semibold text-gray-900 truncate block">{{ item.name }}</span>
                     <span class="text-sm text-gray-500 flex-shrink-0">{{ item.code }}</span>
+                    <!-- 分组标签 -->
+                    {% if item.group and item.group != '默认' %}
+                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
+                        {% if item.group == '重点关注' %}bg-red-100 text-red-700
+                        {% elif item.group == '长线持有' %}bg-blue-100 text-blue-700
+                        {% elif item.group == '短线观察' %}bg-yellow-100 text-yellow-700
+                        {% else %}bg-gray-100 text-gray-600{% endif %}">
+                        {{ item.group }}
+                    </span>
+                    {% endif %}
                 </div>
                 <div class="text-xs text-gray-400 mt-1">
-                    {{ item.group }} · {{ item.created_at }}
+                    {{ item.created_at }}
                 </div>
             </div>
         </a>
@@ -33,14 +44,43 @@
             </div>
         </div>
         
-        <!-- 右侧：删除按钮 -->
-        <button onclick="removeFromWatchlist('{{ item.code }}', this)"
-                class="mt-2 sm:mt-0 p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                title="移除自选股">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-            </svg>
-        </button>
+        <!-- 右侧：操作按钮 -->
+        <div class="flex items-center space-x-1 mt-2 sm:mt-0">
+            <!-- 移动分组按钮 -->
+            <div class="relative group-move-btn">
+                <button onclick="toggleGroupMenu('{{ item.code }}', this)"
+                        class="p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
+                        title="移动分组">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"/>
+                    </svg>
+                </button>
+                <!-- 分组下拉菜单 -->
+                <div class="group-menu hidden absolute right-0 top-full mt-1 w-36 bg-white rounded-lg shadow-lg border border-gray-200 z-20 py-1">
+                    <div class="px-3 py-1.5 text-xs text-gray-400 border-b border-gray-100">移动到分组</div>
+                    <button onclick="moveToGroup('{{ item.code }}', '重点关注', this)" class="w-full text-left px-3 py-2 text-sm hover:bg-red-50 text-gray-700 flex items-center">
+                        <span class="w-2 h-2 rounded-full bg-red-400 mr-2"></span>重点关注
+                    </button>
+                    <button onclick="moveToGroup('{{ item.code }}', '长线持有', this)" class="w-full text-left px-3 py-2 text-sm hover:bg-blue-50 text-gray-700 flex items-center">
+                        <span class="w-2 h-2 rounded-full bg-blue-400 mr-2"></span>长线持有
+                    </button>
+                    <button onclick="moveToGroup('{{ item.code }}', '短线观察', this)" class="w-full text-left px-3 py-2 text-sm hover:bg-yellow-50 text-gray-700 flex items-center">
+                        <span class="w-2 h-2 rounded-full bg-yellow-400 mr-2"></span>短线观察
+                    </button>
+                    <button onclick="moveToGroup('{{ item.code }}', '默认', this)" class="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 text-gray-700 flex items-center">
+                        <span class="w-2 h-2 rounded-full bg-gray-400 mr-2"></span>默认
+                    </button>
+                </div>
+            </div>
+            <!-- 删除按钮 -->
+            <button onclick="removeFromWatchlist('{{ item.code }}', this)"
+                    class="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                    title="移除自选股">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
     </div>
     {% endfor %}
 </div>

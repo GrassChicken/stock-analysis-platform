@@ -13,6 +13,9 @@ let watchlistCache = null;
 let watchlistCacheTime = 0;
 const CACHE_TTL = 60000; // 1分钟缓存
 
+// 分组筛选状态
+let currentGroupFilter = null; // null 表示显示全部
+
 /**
  * 获取自选股列表
  * @param {boolean} forceRefresh - 是否强制刷新
@@ -257,8 +260,220 @@ async function toggleWatchlist(code, name, button) {
     }
 }
 
+// ==================== 分组管理 ====================
+
+/**
+ * 初始化分组筛选 Tab
+ */
+async function initGroupTabs() {
+    const tabsContainer = document.getElementById('group-tabs');
+    if (!tabsContainer) return;
+    
+    try {
+        // 获取分组列表
+        const res = await fetch('/api/watchlist/groups');
+        const data = await res.json();
+        const groups = data.groups || [];
+        
+        // 获取自选股完整列表（含分组信息）
+        const wlRes = await fetch('/api/watchlist');
+        const wlData = await wlRes.json();
+        const watchlist = wlData.watchlist || [];
+        
+        // 统计每个分组的数量
+        const groupCounts = {};
+        watchlist.forEach(item => {
+            const g = item.group || '默认';
+            groupCounts[g] = (groupCounts[g] || 0) + 1;
+        });
+        
+        // 渲染 Tab
+        let html = '';
+        
+        // 全部 Tab
+        const totalCount = watchlist.length;
+        html += `
+            <button class="group-tab flex-shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-all whitespace-nowrap
+                ${!currentGroupFilter ? 'bg-primary-600 text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}"
+                onclick="filterByGroup(null)">
+                全部 <span class="ml-1 text-xs opacity-75">${totalCount}</span>
+            </button>
+        `;
+        
+        // 各分组 Tab
+        const displayGroups = ['重点关注', '长线持有', '短线观察', '默认'];
+        // 加上其他可能存在的自定义分组
+        groups.forEach(g => {
+            if (!displayGroups.includes(g)) displayGroups.push(g);
+        });
+        
+        const groupColors = {
+            '重点关注': { active: 'bg-red-500 text-white', dot: 'bg-red-400' },
+            '长线持有': { active: 'bg-blue-500 text-white', dot: 'bg-blue-400' },
+            '短线观察': { active: 'bg-yellow-500 text-white', dot: 'bg-yellow-400' },
+            '默认': { active: 'bg-gray-600 text-white', dot: 'bg-gray-400' },
+        };
+        
+        displayGroups.forEach(group => {
+            const count = groupCounts[group] || 0;
+            if (count === 0 && group !== '重点关注' && group !== '长线持有' && group !== '短线观察' && group !== '默认') return;
+            
+            const colors = groupColors[group] || { active: 'bg-purple-500 text-white', dot: 'bg-purple-400' };
+            const isActive = currentGroupFilter === group;
+            
+            html += `
+                <button class="group-tab flex-shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-all whitespace-nowrap
+                    ${isActive ? colors.active + ' shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}"
+                    onclick="filterByGroup('${group}')">
+                    <span class="inline-block w-2 h-2 rounded-full ${colors.dot} mr-1.5"></span>${group} <span class="ml-1 text-xs opacity-75">${count}</span>
+                </button>
+            `;
+        });
+        
+        tabsContainer.innerHTML = html;
+        
+    } catch (err) {
+        console.error('[watchlist] 初始化分组 Tab 失败:', err);
+    }
+}
+
+/**
+ * 按分组筛选
+ * @param {string|null} group - 分组名称，null 表示全部
+ */
+function filterByGroup(group) {
+    currentGroupFilter = group;
+    
+    // 重新渲染 Tab 样式
+    initGroupTabs();
+    
+    // 筛选显示
+    const items = document.querySelectorAll('.watchlist-item');
+    let visibleCount = 0;
+    
+    items.forEach(item => {
+        const itemGroup = item.dataset.group || '默认';
+        if (!group || itemGroup === group) {
+            item.style.display = '';
+            visibleCount++;
+        } else {
+            item.style.display = 'none';
+        }
+    });
+    
+    // 无结果显示
+    const container = document.getElementById('watchlist-container');
+    let emptyMsg = container.querySelector('.group-empty-msg');
+    if (visibleCount === 0 && group) {
+        if (!emptyMsg) {
+            emptyMsg = document.createElement('div');
+            emptyMsg.className = 'group-empty-msg text-center py-6';
+            emptyMsg.innerHTML = `
+                <p class="text-sm text-gray-400">「${group}」分组暂无股票</p>
+                <p class="text-xs text-gray-300 mt-1">点击股票右侧的分组按钮移动到此分组</p>
+            `;
+            container.appendChild(emptyMsg);
+        }
+    } else if (emptyMsg) {
+        emptyMsg.remove();
+    }
+}
+
+/**
+ * 切换分组下拉菜单
+ */
+function toggleGroupMenu(code, button) {
+    // 关闭其他已打开的菜单
+    document.querySelectorAll('.group-menu').forEach(menu => {
+        if (!menu.closest('.group-move-btn').contains(button)) {
+            menu.classList.add('hidden');
+        }
+    });
+    
+    // 切换当前菜单
+    const menu = button.nextElementSibling;
+    if (menu && menu.classList.contains('group-menu')) {
+        menu.classList.toggle('hidden');
+    }
+}
+
+/**
+ * 移动股票到指定分组
+ * @param {string} code - 股票代码
+ * @param {string} groupName - 目标分组名
+ */
+async function moveToGroup(code, groupName) {
+    try {
+        const res = await fetch(`/api/watchlist/${code}/group`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ group: groupName })
+        });
+        
+        const data = await res.json();
+        
+        if (res.ok) {
+            // 关闭菜单
+            document.querySelectorAll('.group-menu').forEach(menu => menu.classList.add('hidden'));
+            
+            // 更新 DOM 中的 data-group
+            const item = document.querySelector(`.watchlist-item[data-code="${code}"]`);
+            if (item) {
+                item.dataset.group = groupName;
+                
+                // 更新分组标签样式
+                const badge = item.querySelector('span.inline-flex');
+                if (badge) {
+                    // 移除旧的分组颜色
+                    badge.className = badge.className.replace(/bg-\w+-100 text-\w+-700/g, '');
+                    
+                    const colorMap = {
+                        '重点关注': 'bg-red-100 text-red-700',
+                        '长线持有': 'bg-blue-100 text-blue-700',
+                        '短线观察': 'bg-yellow-100 text-yellow-700',
+                        '默认': 'bg-gray-100 text-gray-600'
+                    };
+                    badge.className += ' ' + (colorMap[groupName] || 'bg-gray-100 text-gray-600');
+                    badge.textContent = groupName;
+                    
+                    // 过渡动画
+                    badge.style.transition = 'all 0.3s ease';
+                    badge.style.transform = 'scale(1.15)';
+                    setTimeout(() => { badge.style.transform = 'scale(1)'; }, 300);
+                }
+            }
+            
+            // 刷新 Tab 计数
+            initGroupTabs();
+            
+            // 如果当前有分组筛选，重新筛选
+            if (currentGroupFilter) {
+                filterByGroup(currentGroupFilter);
+            }
+            
+            showToast(data.message || `已移动到「${groupName}」`, 'success');
+        } else {
+            showToast(data.error || '移动失败', 'error');
+        }
+    } catch (err) {
+        console.error('[watchlist] 移动分组失败:', err);
+        showToast('移动失败，请重试', 'error');
+    }
+}
+
+// 点击页面空白处关闭分组菜单
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('.group-move-btn')) {
+        document.querySelectorAll('.group-menu').forEach(menu => menu.classList.add('hidden'));
+    }
+});
+
 // 全局暴露函数供 HTML 调用
 window.addToWatchlist = addToWatchlist;
 window.removeFromWatchlist = removeFromWatchlist;
 window.updateWatchlistButtons = updateWatchlistButtons;
 window.toggleWatchlist = toggleWatchlist;
+window.initGroupTabs = initGroupTabs;
+window.filterByGroup = filterByGroup;
+window.toggleGroupMenu = toggleGroupMenu;
+window.moveToGroup = moveToGroup;

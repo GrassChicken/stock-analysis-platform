@@ -387,6 +387,70 @@ def remove_watchlist(code: str):
         raise
 
 
+@api_bp.route("/watchlist/<code>/group", methods=['PUT'])
+@api_error_handler
+def update_watchlist_group(code: str):
+    """修改自选股分组"""
+    from app.models.database import Watchlist
+    from app.extensions import db
+    
+    try:
+        validate_stock_code(code)
+        data = request.get_json() if request.is_json else request.form
+        group_name = data.get('group', '').strip()
+        
+        if not group_name:
+            raise ValidationError("分组名称不能为空")
+        
+        item = Watchlist.query.filter_by(code=code).first()
+        if not item:
+            raise NotFoundError("未找到该自选股", details={"code": code})
+        
+        old_group = item.group_name
+        item.group_name = group_name
+        db.session.commit()
+        
+        logger.info(f"修改自选股分组: {code} {old_group} -> {group_name}")
+        return jsonify({
+            "message": f"已移动到 {group_name}",
+            "code": code,
+            "old_group": old_group,
+            "new_group": group_name
+        })
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"修改自选股分组失败: {e}")
+        raise
+
+
+@api_bp.route("/watchlist/groups", methods=['GET'])
+@api_error_handler
+def get_watchlist_groups():
+    """获取所有分组列表"""
+    from app.models.database import Watchlist
+    from app.extensions import db
+    
+    try:
+        # 查询所有不重复的分组
+        groups = db.session.query(Watchlist.group_name).distinct().all()
+        group_names = [g[0] for g in groups if g[0]]
+        
+        # 确保默认分组存在
+        if '默认' not in group_names:
+            group_names.insert(0, '默认')
+        
+        # 添加常用预设分组
+        preset_groups = ['重点关注', '长线持有', '短线观察']
+        for preset in preset_groups:
+            if preset not in group_names:
+                group_names.append(preset)
+        
+        return jsonify({"groups": group_names})
+    except Exception as e:
+        logger.error(f"获取分组列表失败: {e}")
+        raise
+
+
 # ==================== 对比 PK ====================
 
 @api_bp.route("/compare", methods=['POST'])

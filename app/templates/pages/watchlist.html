@@ -7,8 +7,14 @@
         <a href="/" class="text-xs sm:text-sm text-primary-600 hover:text-primary-800 transition-colors">← 返回首页</a>
     </div>
 
+    <!-- 分组筛选 Tab -->
+    <div id="group-tabs" class="flex items-center space-x-2 overflow-x-auto pb-1 scrollbar-hide">
+        <!-- 由 JS 动态渲染 -->
+    </div>
+
     <div class="bg-white rounded-xl shadow-sm p-3 sm:p-6 card-hover">
-        <div hx-get="/api/watchlist"
+        <div id="watchlist-container"
+             hx-get="/api/watchlist"
              hx-trigger="load"
              hx-swap="innerHTML"
              hx-indicator="#watchlist-loading">
@@ -27,4 +33,13 @@
         </div>
     </div>
 </div>
+
+<script>
+// 等待 HTMX 加载完成后初始化分组 Tab
+document.addEventListener('htmx:afterSwap', function(event) {
+    if (event.detail.target.id === 'watchlist-container' && typeof initGroupTabs === 'function') {
+        initGroupTabs();
+    }
+});
+</script>
 {% endblock %}
