@@ -441,27 +441,21 @@ async function moveToGroup(code, groupName) {
                     badge = document.createElement('span');
                     badge.className = `inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${colorClass}`;
                     badge.textContent = groupName;
-                    badge.style.transition = 'all 0.3s ease';
-                    badge.style.transform = 'scale(0)';
-                    badge.style.opacity = '0';
                     // 插入到股票代码后面
                     const codeSpan = item.querySelector('span.text-sm.text-gray-500');
                     if (codeSpan && codeSpan.parentNode) {
                         codeSpan.after(badge);
                     }
-                    // 动画展开
-                    requestAnimationFrame(() => {
-                        badge.style.transform = 'scale(1.15)';
-                        badge.style.opacity = '1';
-                        setTimeout(() => { badge.style.transform = 'scale(1)'; }, 200);
-                    });
                 }
                 
-                // 缩放动画
-                if (badge) {
+                // 统一处理缩放动画（仅对非"默认"分组的 badge）
+                if (badge && groupName !== '默认') {
                     badge.style.transition = 'all 0.3s ease';
                     badge.style.transform = 'scale(1.15)';
                     setTimeout(() => { badge.style.transform = 'scale(1)'; }, 300);
+                } else if (badge && groupName === '默认') {
+                    // 移动到"默认"分组时，移除 badge（与后端模板保持一致）
+                    badge.remove();
                 }
             }
             
