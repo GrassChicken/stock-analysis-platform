@@ -457,7 +457,7 @@ class TechnicalAnalyzer:
     # ==================== K线形态识别 ====================
 
     def _detect_patterns(self) -> List[Dict]:
-        """K线形态识别"""
+        """K线形态识别（仅识别最新K线）"""
         patterns = []
 
         if len(self.kline_data) < 5:
@@ -590,6 +590,226 @@ class TechnicalAnalyzer:
                 })
 
         return patterns
+
+    def detect_all_patterns(self, kline_data: List[Dict] = None) -> List[Dict]:
+        """
+        扫描全部K线，识别所有形态
+        
+        Args:
+            kline_data: K线数据列表，如果为None则使用当前实例数据
+        
+        Returns:
+            形态列表，每个形态包含：
+            - name: 形态名称
+            - signal: 信号类型 (bullish/bearish/neutral)
+            - desc: 形态描述
+            - reliability: 可靠性 (high/medium/low)
+            - index: K线索引位置（用于图表定位）
+            - date: 日期（格式 YYYYMMDD 或 YYYY-MM-DD）
+            - price: 关键价格（用于图表标注位置）
+        """
+        patterns = []
+        
+        # 使用传入的数据或实例数据
+        data = kline_data if kline_data is not None else self.kline_data
+        
+        if len(data) < 5:
+            return patterns
+        
+        # 遍历所有K线（从第5根开始，确保有足够的前置数据）
+        for i in range(4, len(data)):
+            k = data[i]
+            prev = data[i - 1] if i >= 1 else None
+            
+            # 获取日期
+            date = k.get('trade_date', k.get('datetime', ''))
+            
+            # 1. 十字星
+            body = abs(k["close"] - k["open"])
+            total_range = k["high"] - k["low"]
+            if total_range > 0 and body / total_range < 0.1:
+                patterns.append({
+                    "name": "十字星",
+                    "signal": "neutral",
+                    "desc": "多空力量平衡，可能变盘",
+                    "reliability": "medium",
+                    "index": i,
+                    "date": date,
+                    "price": k["high"]  # 标注在高点上方
+                })
+            
+            # 2. 锤子线
+            upper_shadow = k["high"] - max(k["open"], k["close"])
+            lower_shadow = min(k["open"], k["close"]) - k["low"]
+            if lower_shadow > body * 2 and upper_shadow < body * 0.5 and body > 0:
+                # 检查是否在下跌趋势中（前10根K线的均线）
+                start_idx = max(0, i - 9)
+                ma10 = np.mean([data[j]["close"] for j in range(start_idx, i + 1)])
+                if k["close"] < ma10:
+                    patterns.append({
+                        "name": "锤子线",
+                        "signal": "bullish",
+                        "desc": "下跌趋势中出现锤子线，可能见底反转",
+                        "reliability": "medium",
+                        "index": i,
+                        "date": date,
+                        "price": k["low"]  # 标注在低点下方
+                    })
+            
+            # 3. 倒锤子线
+            if upper_shadow > body * 2 and lower_shadow < body * 0.5 and body > 0:
+                start_idx = max(0, i - 9)
+                ma10 = np.mean([data[j]["close"] for j in range(start_idx, i + 1)])
+                if k["close"] < ma10:
+                    patterns.append({
+                        "name": "倒锤子线",
+                        "signal": "bullish",
+                        "desc": "下跌趋势中出现倒锤子，关注次日确认",
+                        "reliability": "low",
+                        "index": i,
+                        "date": date,
+                        "price": k["high"]
+                    })
+            
+            # 4. 大阳线
+            if k["close"] > k["open"]:
+                body_pct = (k["close"] - k["open"]) / k["open"] * 100 if k["open"] > 0 else 0
+                if body_pct > 3:
+                    patterns.append({
+                        "name": "大阳线",
+                        "signal": "bullish",
+                        "desc": f"实体涨幅{body_pct:.1f}%，多头力量强劲",
+                        "reliability": "high",
+                        "index": i,
+                        "date": date,
+                        "price": k["high"]
+                    })
+            
+            # 5. 大阴线
+            if k["close"] < k["open"]:
+                body_pct = (k["open"] - k["close"]) / k["open"] * 100 if k["open"] > 0 else 0
+                if body_pct > 3:
+                    patterns.append({
+                        "name": "大阴线",
+                        "signal": "bearish",
+                        "desc": f"实体跌幅{body_pct:.1f}%，空头力量强劲",
+                        "reliability": "high",
+                        "index": i,
+                        "date": date,
+                        "price": k["low"]
+                    })
+            
+            # 6. 看涨吞没
+            if prev and i >= 1:
+                if prev["close"] < prev["open"] and k["close"] > k["open"]:
+                    if k["open"] <= prev["close"] and k["close"] >= prev["open"]:
+                        patterns.append({
+                            "name": "看涨吞没",
+                            "signal": "bullish",
+                            "desc": "阳线完全吞没前一根阴线，底部反转信号",
+                            "reliability": "high",
+                            "index": i,
+                            "date": date,
+                            "price": k["low"]
+                        })
+            
+            # 7. 看跌吞没
+            if prev and i >= 1:
+                if prev["close"] > prev["open"] and k["close"] < k["open"]:
+                    if k["open"] >= prev["close"] and k["close"] <= prev["open"]:
+                        patterns.append({
+                            "name": "看跌吞没",
+                            "signal": "bearish",
+                            "desc": "阴线完全吞没前一根阳线，顶部反转信号",
+                            "reliability": "high",
+                            "index": i,
+                            "date": date,
+                            "price": k["high"]
+                        })
+            
+            # 8. 早晨之星（三根K线组合）
+            if i >= 2:
+                k1, k2, k3 = data[i - 2], data[i - 1], k
+                if (k1["close"] < k1["open"] and
+                    abs(k2["close"] - k2["open"]) < abs(k1["close"] - k1["open"]) * 0.3 and
+                    k3["close"] > k3["open"] and
+                    k3["close"] > (k1["open"] + k1["close"]) / 2):
+                    patterns.append({
+                        "name": "早晨之星",
+                        "signal": "bullish",
+                        "desc": "经典底部反转形态",
+                        "reliability": "high",
+                        "index": i,
+                        "date": date,
+                        "price": k3["low"]
+                    })
+            
+            # 9. 黄昏之星
+            if i >= 2:
+                k1, k2, k3 = data[i - 2], data[i - 1], k
+                if (k1["close"] > k1["open"] and
+                    abs(k2["close"] - k2["open"]) < abs(k1["close"] - k1["open"]) * 0.3 and
+                    k3["close"] < k3["open"] and
+                    k3["close"] < (k1["open"] + k1["close"]) / 2):
+                    patterns.append({
+                        "name": "黄昏之星",
+                        "signal": "bearish",
+                        "desc": "经典顶部反转形态",
+                        "reliability": "high",
+                        "index": i,
+                        "date": date,
+                        "price": k3["high"]
+                    })
+            
+            # 10. 三连阳
+            if i >= 2:
+                last3 = data[i - 2:i + 1]
+                if all(k["close"] > k["open"] for k in last3):
+                    patterns.append({
+                        "name": "三连阳",
+                        "signal": "bullish",
+                        "desc": "连续三根阳线，多头趋势强劲",
+                        "reliability": "medium",
+                        "index": i,
+                        "date": date,
+                        "price": data[i]["low"]
+                    })
+            
+            # 11. 三连阴
+            if i >= 2:
+                last3 = data[i - 2:i + 1]
+                if all(k["close"] < k["open"] for k in last3):
+                    patterns.append({
+                        "name": "三连阴",
+                        "signal": "bearish",
+                        "desc": "连续三根阴线，空头趋势强劲",
+                        "reliability": "medium",
+                        "index": i,
+                        "date": date,
+                        "price": data[i]["high"]
+                    })
+        
+        # 按可靠性过滤（只显示high和medium）
+        filtered = [p for p in patterns if p["reliability"] in ["high", "medium"]]
+        
+        # 去重（同一个index只保留一个最重要的形态）
+        unique_patterns = {}
+        for p in filtered:
+            idx = p["index"]
+            if idx not in unique_patterns:
+                unique_patterns[idx] = p
+            else:
+                # 保留可靠性更高的
+                priority = {"high": 3, "medium": 2, "low": 1}
+                if priority.get(p["reliability"], 0) > priority.get(unique_patterns[idx]["reliability"], 0):
+                    unique_patterns[idx] = p
+        
+        result = list(unique_patterns.values())
+        
+        # 按index排序
+        result.sort(key=lambda x: x["index"])
+        
+        return result
 
     # ==================== 支撑阻力位 ====================
 

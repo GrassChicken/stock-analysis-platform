@@ -30,6 +30,10 @@ let chipsConcMode = 90;              // 筹码集中度模式：90 或 70
 let _chipsYIdx = -1;                 // 筹码 y 轴索引（datazoom 同步用）
 let _chipsDzBound = false;           // datazoom 监听是否已绑定
 
+// 形态标注状态
+let activePatternAnnotation = false; // 形态标注开关
+let patternDataCache = null;         // 形态数据缓存 {patterns: [...], loading: bool}
+
 /** 计算 dataZoom 窗口内 K 线价格范围（含 5% padding） */
 function getVisiblePriceRange(data, startPct, endPct) {
     const n = data.length;
@@ -620,6 +624,44 @@ function initKlineChart(klineData) {
         });
     }
 
+    // ========== 形态标注 ==========
+    if (activePatternAnnotation && patternDataCache?.patterns?.length > 0) {
+        const markPointData = patternDataCache.patterns.map(p => {
+            const isBullish = p.signal === 'bullish';
+            const isNeutral = p.signal === 'neutral';
+            
+            return {
+                name: p.name,
+                value: p.price,
+                xAxis: p.date,
+                yAxis: p.price,
+                symbol: isBullish ? 'triangle' : (isNeutral ? 'diamond' : 'pin'),
+                symbolSize: isBullish ? 14 : (isNeutral ? 12 : 14),
+                symbolRotate: isBullish ? 0 : 180,
+                itemStyle: {
+                    color: isBullish ? '#ef4444' : (isNeutral ? '#f59e0b' : '#22c55e')
+                },
+                label: {
+                    show: true,
+                    formatter: '{b}',
+                    position: isBullish ? 'bottom' : 'top',
+                    color: isBullish ? '#ef4444' : (isNeutral ? '#f59e0b' : '#22c55e'),
+                    fontSize: 10,
+                    fontWeight: 'bold'
+                }
+            };
+        });
+        
+        // 为K线series添加markPoint
+        if (option.series[0]) {
+            option.series[0].markPoint = {
+                data: markPointData,
+                silent: true,
+                animation: false
+            };
+        }
+    }
+
     // ========== 副图1 ==========
     const sub1Idx = option.grid.length; // 动态索引，兼容筹码峰偏移
     const sub1 = buildSubIndicatorConfig(
@@ -681,6 +723,29 @@ async function loadChips() {
     }
     if (klineDataCache) initKlineChart(klineDataCache);
     updateChipsInfo();
+}
+
+/**
+ * 加载形态标注数据
+ */
+async function loadPatterns() {
+    if (patternDataCache?.loading) return;
+    if (patternDataCache?.patterns) {
+        // 已有缓存数据，直接渲染
+        if (klineDataCache) initKlineChart(klineDataCache);
+        return;
+    }
+    
+    patternDataCache = { loading: true };
+    try {
+        const res = await fetch(`/api/stock/${STOCK_CODE}/patterns`);
+        const data = await res.json();
+        patternDataCache = { patterns: data.patterns || [], loading: false };
+    } catch (err) {
+        console.error('[kline-chart] 加载形态数据失败:', err);
+        patternDataCache = { patterns: [], loading: false };
+    }
+    if (klineDataCache) initKlineChart(klineDataCache);
 }
 
 /**
@@ -859,6 +924,31 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!btn) return;
         chipsConcMode = parseInt(btn.dataset.mode) || 90;
         updateChipsInfo();
+    });
+
+    // 形态标注开关
+    document.addEventListener('click', function(e) {
+        const btn = e.target.closest('.pattern-toggle');
+        if (!btn) return;
+
+        activePatternAnnotation = !activePatternAnnotation;
+        btn.classList.toggle('bg-primary-500', activePatternAnnotation);
+        btn.classList.toggle('text-white', activePatternAnnotation);
+        btn.classList.toggle('bg-gray-100', !activePatternAnnotation);
+        btn.classList.toggle('text-gray-600', !activePatternAnnotation);
+
+        if (activePatternAnnotation) {
+            // 如果还没加载过形态数据，先加载
+            if (!patternDataCache || (!patternDataCache.patterns && !patternDataCache.loading)) {
+                loadPatterns();
+            } else {
+                // 已有数据，直接刷新图表
+                if (klineDataCache) initKlineChart(klineDataCache);
+            }
+        } else {
+            // 关闭形态标注，直接刷新图表
+            if (klineDataCache) initKlineChart(klineDataCache);
+        }
     });
 
     // 双副图开关

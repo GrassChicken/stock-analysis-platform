@@ -86,6 +86,40 @@ def get_chips(code: str):
     return jsonify(data)
 
 
+@api_bp.route("/stock/<code>/patterns")
+@api_error_handler
+def get_patterns(code: str):
+    """K线形态标注（全量扫描，缓存1小时）"""
+    validate_stock_code(code)
+    cache_key = f"patterns:{code}"
+    cached_result = flask_cache.get(cache_key)
+    if cached_result is not None:
+        logger.debug(f"形态标注缓存命中: {code}")
+        return jsonify(cached_result)
+    
+    from app.services.data.stock_service import stock_service
+    from app.services.analysis.technical import TechnicalAnalyzer
+    
+    # 获取K线数据（最近250根日K）
+    kline = stock_service.get_kline(code, period='daily', count=250)
+    if not kline:
+        return jsonify({"patterns": [], "error": "K线数据为空"})
+    
+    analyzer = TechnicalAnalyzer()
+    analyzer.kline_data = kline
+    patterns = analyzer.detect_all_patterns(kline)
+    
+    result = {
+        "code": code,
+        "patterns": patterns,
+        "total": len(patterns)
+    }
+    
+    flask_cache.set(cache_key, result, timeout=3600)
+    logger.debug(f"形态标注已缓存: {code}, 共{len(patterns)}个")
+    return jsonify(result)
+
+
 # ==================== 分析 ====================
 
 from app.extensions import cache as flask_cache
