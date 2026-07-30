@@ -421,22 +421,44 @@ async function moveToGroup(code, groupName) {
             if (item) {
                 item.dataset.group = groupName;
                 
-                // 更新分组标签样式
-                const badge = item.querySelector('span.inline-flex');
+                // 更新分组标签样式（动态创建或更新 badge）
+                const colorMap = {
+                    '重点关注': 'bg-red-100 text-red-700',
+                    '长线持有': 'bg-blue-100 text-blue-700',
+                    '短线观察': 'bg-yellow-100 text-yellow-700',
+                    '默认': 'bg-gray-100 text-gray-600'
+                };
+                const colorClass = colorMap[groupName] || 'bg-gray-100 text-gray-600';
+                
+                let badge = item.querySelector('span.inline-flex');
                 if (badge) {
-                    // 移除旧的分组颜色
-                    badge.className = badge.className.replace(/bg-\w+-100 text-\w+-700/g, '');
-                    
-                    const colorMap = {
-                        '重点关注': 'bg-red-100 text-red-700',
-                        '长线持有': 'bg-blue-100 text-blue-700',
-                        '短线观察': 'bg-yellow-100 text-yellow-700',
-                        '默认': 'bg-gray-100 text-gray-600'
-                    };
-                    badge.className += ' ' + (colorMap[groupName] || 'bg-gray-100 text-gray-600');
+                    // 更新已有 badge
+                    badge.className = badge.className.replace(/bg-\w+-100 text-\w+-700/g, '').trim();
+                    badge.className += ' ' + colorClass;
                     badge.textContent = groupName;
-                    
-                    // 过渡动画
+                } else if (groupName !== '默认') {
+                    // 动态创建 badge（初始是"默认"分组时不存在 badge 元素）
+                    badge = document.createElement('span');
+                    badge.className = `inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${colorClass}`;
+                    badge.textContent = groupName;
+                    badge.style.transition = 'all 0.3s ease';
+                    badge.style.transform = 'scale(0)';
+                    badge.style.opacity = '0';
+                    // 插入到股票代码后面
+                    const codeSpan = item.querySelector('span.text-sm.text-gray-500');
+                    if (codeSpan && codeSpan.parentNode) {
+                        codeSpan.after(badge);
+                    }
+                    // 动画展开
+                    requestAnimationFrame(() => {
+                        badge.style.transform = 'scale(1.15)';
+                        badge.style.opacity = '1';
+                        setTimeout(() => { badge.style.transform = 'scale(1)'; }, 200);
+                    });
+                }
+                
+                // 缩放动画
+                if (badge) {
                     badge.style.transition = 'all 0.3s ease';
                     badge.style.transform = 'scale(1.15)';
                     setTimeout(() => { badge.style.transform = 'scale(1)'; }, 300);
