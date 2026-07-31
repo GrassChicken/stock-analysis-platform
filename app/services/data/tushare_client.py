@@ -6,7 +6,20 @@ Tushare 数据客户端
 import logging
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
-import tushare as ts
+import os
+
+# 支持 ttshare（代理 token）和 tushare（官方 token）
+# 环境变量 TUSHARE_LIB=ttshare 时使用代理
+_LIB_NAME = os.getenv('TUSHARE_LIB', 'tushare')
+if _LIB_NAME == 'ttshare':
+    import ttshare as ts
+    logger_init = logging.getLogger(__name__)
+    logger_init.info(f"✓ 使用 ttshare（代理 token 模式）")
+else:
+    import tushare as ts
+    logger_init = logging.getLogger(__name__)
+    logger_init.info(f"✓ 使用 tushare（官方 token 模式）")
+
 import pandas as pd
 
 logger = logging.getLogger(__name__)

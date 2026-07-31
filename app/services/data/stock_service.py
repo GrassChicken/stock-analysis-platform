@@ -417,14 +417,40 @@ class StockService:
                     'cost_95pct': _f(r.get('cost_95pct')),      # 95分位成本
                 }
 
+            # 获取近 60 天筹码统计趋势（用于迷你图和成本线）
+            trend_data = []
+            if perf_df is not None and not perf_df.empty:
+                perf_df = perf_df.copy()
+                perf_df['trade_date'] = perf_df['trade_date'].astype(str)
+                # 按日期排序，取最近 60 条
+                perf_df = perf_df.sort_values('trade_date', ascending=False).head(60)
+                perf_df = perf_df.sort_values('trade_date', ascending=True)
+                
+                for _, row in perf_df.iterrows():
+                    def _f2(val):
+                        try:
+                            return round(float(val), 2)
+                        except (TypeError, ValueError):
+                            return None
+                    
+                    trend_data.append({
+                        'date': str(row['trade_date']),
+                        'winner_rate': _f2(row.get('winner_rate')),
+                        'weight_avg': _f2(row.get('weight_avg')),
+                        'cost_50pct': _f2(row.get('cost_50pct')),
+                        'cost_5pct': _f2(row.get('cost_5pct')),
+                        'cost_95pct': _f2(row.get('cost_95pct')),
+                    })
+            
             result = {
                 'available': True,
                 'trade_date': latest_date,
                 'distribution': distribution,
                 'perf': perf,
+                'trend': trend_data,  # 新增：60 天趋势数据
             }
             cache_set(cache_key, result, timeout=CACHE_TTL['chips'])
-            logger.info(f"✓ 筹码数据获取成功 {ts_code}: {len(distribution)} 个价位, 数据日期 {latest_date}")
+            logger.info(f"✓ 筹码数据获取成功 {ts_code}: {len(distribution)} 个价位, 数据日期 {latest_date}, 趋势 {len(trend_data)} 天")
             return result
         except Exception as e:
             logger.error(f"获取筹码数据失败 {ts_code}: {e}")

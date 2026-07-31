@@ -24,9 +24,10 @@ let activeSubIndicator2 = 'macd';    // 副图2：MACD（默认）
 
 // 筹码峰状态
 let activeChips = false;             // 筹码峰开关
-let chipsDataCache = null;           // 筹码数据 {available, trade_date, distribution, perf}
+let chipsDataCache = null;           // 筹码数据 {available, trade_date, distribution, perf, trend}
 let chipsLoading = false;
 let chipsConcMode = 90;              // 筹码集中度模式：90 或 70
+let chipsCostLine = false;           // 成本线开关
 let _chipsYIdx = -1;                 // 筹码 y 轴索引（datazoom 同步用）
 let _chipsDzBound = false;           // datazoom 监听是否已绑定
 
@@ -795,6 +796,38 @@ function updateChipsInfo() {
     const btn90 = is90 ? 'bg-gray-700 text-white' : 'bg-gray-200 text-gray-600 hover:bg-gray-300';
     const btn70 = !is90 ? 'bg-gray-700 text-white' : 'bg-gray-200 text-gray-600 hover:bg-gray-300';
 
+    // 成本线开关按钮样式
+    const costBtnStyle = chipsCostLine ? 'bg-purple-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200';
+
+    // 获利比例趋势迷你图（SVG sparkline）
+    let trendSvg = '';
+    const trend = chipsDataCache.trend || [];
+    if (trend.length >= 2) {
+        const W = 160, H = 32;
+        const rates = trend.map(t => t.winner_rate).filter(v => v != null);
+        if (rates.length >= 2) {
+            const minR = Math.min(...rates), maxR = Math.max(...rates);
+            const range = maxR - minR || 1;
+            const points = rates.map((r, i) => {
+                const x = (i / (rates.length - 1)) * W;
+                const y = H - ((r - minR) / range) * (H - 4) - 2;
+                return `${x.toFixed(1)},${y.toFixed(1)}`;
+            }).join(' ');
+            // 填充区域
+            const fillPoints = points + ` ${W},${H} 0,${H}`;
+            trendSvg = `
+                <svg viewBox="0 0 ${W} ${H}" class="w-full h-8" preserveAspectRatio="none">
+                    <polygon points="${fillPoints}" fill="rgba(239,68,68,0.1)" />
+                    <polyline points="${points}" fill="none" stroke="#ef4444" stroke-width="1.5" />
+                </svg>
+                <div class="flex justify-between text-[9px] text-gray-400 mt-0.5">
+                    <span>最低 ${minR.toFixed(1)}%</span>
+                    <span>最高 ${maxR.toFixed(1)}%</span>
+                </div>
+            `;
+        }
+    }
+
     panel.innerHTML = `
         <div class="space-y-2">
             <!-- 图例 -->
@@ -807,6 +840,12 @@ function updateChipsInfo() {
                 <div class="flex justify-between"><span class="text-gray-500">获利比例</span><b class="text-red-500 tabular-nums">${v(p.winner_rate,'%')}</b></div>
                 <div class="flex justify-between"><span class="text-gray-500">平均成本</span><b class="text-purple-600 tabular-nums">${v(p.weight_avg)}</b></div>
             </div>
+            <!-- 获利比例趋势迷你图 -->
+            ${trendSvg ? `
+            <div class="px-0.5">
+                <div class="text-[10px] text-gray-400 mb-0.5">获利比例趋势</div>
+                ${trendSvg}
+            </div>` : ''}
             <!-- 集中度切换 -->
             <div class="flex gap-1">
                 <button class="chips-conc-btn btn-press flex-1 py-1 text-[11px] rounded ${btn90}" data-mode="90">90%筹码</button>
@@ -816,12 +855,16 @@ function updateChipsInfo() {
                 <div class="flex justify-between"><span class="text-gray-500">价格区间</span><b class="tabular-nums">${v(cLo)}–${v(cHi)}</b></div>
                 <div class="flex justify-between"><span class="text-gray-500">集中度</span><b class="tabular-nums">${conc != null ? conc+'%' : '--'}</b></div>
             </div>
-            <!-- 日期提示 -->
+            <!-- 成本线开关 -->
             <div class="pt-1 border-t border-gray-200">
-                <div class="flex justify-between text-[10px] text-gray-400">
-                    <span title="筹码数据每日 18:00-19:00 更新">说明 ⓘ</span>
-                    <span class="tabular-nums">${dateStr}</span>
-                </div>
+                <button class="chips-costline-toggle btn-press w-full py-1 text-[11px] rounded ${costBtnStyle}">
+                    叠加成本线（50%分位）
+                </button>
+            </div>
+            <!-- 日期提示 -->
+            <div class="flex justify-between text-[10px] text-gray-400">
+                <span title="筹码数据每日 18:00-19:00 更新">说明 ⓘ</span>
+                <span class="tabular-nums">${dateStr}</span>
             </div>
         </div>
     `;
@@ -924,6 +967,15 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!btn) return;
         chipsConcMode = parseInt(btn.dataset.mode) || 90;
         updateChipsInfo();
+    });
+
+    // 筹码成本线开关
+    document.addEventListener('click', function(e) {
+        const btn = e.target.closest('.chips-costline-toggle');
+        if (!btn) return;
+        chipsCostLine = !chipsCostLine;
+        updateChipsInfo();
+        if (klineDataCache) initKlineChart(klineDataCache);
     });
 
     // 形态标注开关
