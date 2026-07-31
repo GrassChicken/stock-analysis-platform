@@ -461,6 +461,38 @@ class TushareClient:
             logger.error(f"获取筹码统计失败 {ts_code}: {e}")
             return pd.DataFrame()
 
+    def get_forecast(self, ts_code: str = None, start_date: str = None, end_date: str = None) -> pd.DataFrame:
+        """
+        获取业绩预告（forecast：净利润预测区间、同比变动幅度）
+
+        Args:
+            ts_code: 股票代码（可选，不传则返回全市场）
+            start_date: 开始日期 YYYYMMDD（公告日期）
+            end_date: 结束日期 YYYYMMDD（公告日期）
+
+        Returns:
+            业绩预告 DataFrame
+            字段：ts_code, ann_date, end_date, type, p_change_min, p_change_max,
+                  net_profit_min, net_profit_max, last_parent_net, summary, change_reason
+        """
+        if not self.pro:
+            return pd.DataFrame()
+
+        try:
+            kwargs = {}
+            if ts_code:
+                kwargs['ts_code'] = self._format_code(ts_code)
+            if start_date:
+                kwargs['start_date'] = start_date
+            if end_date:
+                kwargs['end_date'] = end_date
+
+            df = self.pro.forecast(**kwargs)
+            return df if df is not None else pd.DataFrame()
+        except Exception as e:
+            logger.error(f"获取业绩预告失败 {ts_code or '全市场'}: {e}")
+            return pd.DataFrame()
+
 
 # 全局实例（需要延迟初始化）
 _tushare_client = None

@@ -456,6 +456,57 @@ class StockService:
             logger.error(f"获取筹码数据失败 {ts_code}: {e}")
             return {'available': False}
 
+    def get_forecast(self, ts_code: str = None, start_date: str = None, end_date: str = None) -> Dict[str, Any]:
+        """
+        获取业绩预告数据
+
+        Args:
+            ts_code: 股票代码（可选，不传则返回全市场）
+            start_date: 开始日期 YYYYMMDD（公告日期）
+            end_date: 结束日期 YYYYMMDD（公告日期）
+
+        Returns:
+            dict: {
+                'available': bool,
+                'data': [预告列表],
+                'count': 总数
+            }
+        """
+        client = get_tushare_client()
+        
+        try:
+            df = client.get_forecast(ts_code=ts_code, start_date=start_date, end_date=end_date)
+            
+            if df is None or df.empty:
+                return {'available': False, 'data': [], 'count': 0}
+            
+            # 转换为字典列表
+            forecast_list = []
+            for _, row in df.iterrows():
+                forecast_list.append({
+                    'ts_code': row.get('ts_code'),
+                    'ann_date': row.get('ann_date'),  # 公告日期
+                    'end_date': row.get('end_date'),  # 报告期
+                    'type': row.get('type'),  # 预告类型
+                    'p_change_min': row.get('p_change_min'),  # 净利润变动下限
+                    'p_change_max': row.get('p_change_max'),  # 净利润变动上限
+                    'net_profit_min': row.get('net_profit_min'),  # 净利润下限
+                    'net_profit_max': row.get('net_profit_max'),  # 净利润上限
+                    'last_parent_net': row.get('last_parent_net'),  # 上年同期净利润
+                    'summary': row.get('summary'),  # 业绩预告摘要
+                    'change_reason': row.get('change_reason'),  # 业绩变动原因
+                })
+            
+            logger.info(f"✓ 获取业绩预告数据成功：{len(forecast_list)} 条")
+            return {
+                'available': True,
+                'data': forecast_list,
+                'count': len(forecast_list)
+            }
+        except Exception as e:
+            logger.error(f"获取业绩预告数据失败 {ts_code or '全市场'}: {e}")
+            return {'available': False, 'data': [], 'count': 0}
+
     def _aggregate_weekly(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         将日K数据聚合为周K

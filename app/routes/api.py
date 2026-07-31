@@ -86,6 +86,32 @@ def get_chips(code: str):
     return jsonify(data)
 
 
+@api_bp.route("/stock/<code>/forecast")
+@api_error_handler
+def get_stock_forecast(code: str):
+    """个股业绩预告（10000积分专属接口）"""
+    validate_stock_code(code)
+    data = stock_service.get_forecast(code)
+    return jsonify(data)
+
+
+@api_bp.route("/market/forecast")
+@api_error_handler
+def get_market_forecast():
+    """全市场业绩预告（10000积分专属接口，支持筛选）"""
+    forecast_type = request.args.get('type', '')  # 预增/预减/扭亏/首亏/续亏/续盈/略增/略减
+    period = request.args.get('period', '')  # 报告期如 20241231
+    start_date = request.args.get('start_date', '')  # 公告日期范围
+    end_date = request.args.get('end_date', '')
+    data = stock_service.get_market_forecast(
+        forecast_type=forecast_type,
+        period=period,
+        start_date=start_date,
+        end_date=end_date
+    )
+    return jsonify(data)
+
+
 @api_bp.route("/stock/<code>/patterns")
 @api_error_handler
 def get_patterns(code: str):

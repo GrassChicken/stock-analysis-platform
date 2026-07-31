@@ -47,6 +47,10 @@ async function loadTabContent(tab) {
             const res = await fetch(`/api/stock/${STOCK_CODE}/industry`);
             const data = await res.json();
             html = renderIndustry(data);
+        } else if (tab === 'forecast') {
+            const res = await fetch(`/api/stock/${STOCK_CODE}/forecast`);
+            const data = await res.json();
+            html = renderForecast(data);
         } else if (tab === 'ai') {
             html = renderAIAnalysis();
         }
