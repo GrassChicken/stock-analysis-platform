@@ -563,6 +563,19 @@ function initKlineChart(klineData) {
         );
     }
 
+    // ========== 筹码中位成本线（叠加在主图） ==========
+    if (chipsCostLine && chipsDataCache && chipsDataCache.perf && chipsDataCache.perf.cost_50pct) {
+        const costPrice = chipsDataCache.perf.cost_50pct;
+        option.legend.data.push('筹码成本');
+        option.series.push({
+            name: '筹码成本', type: 'line',
+            data: dates.map(() => costPrice),
+            lineStyle: { width: 1.5, color: '#e879f9', type: 'dashed' },
+            symbol: 'none', xAxisIndex: 0, yAxisIndex: 0,
+            silent: true, z: 1
+        });
+    }
+
     // ========== 筹码峰（独立右侧网格，参考东方财富布局） ==========
     if (chipsActive) {
         const chips = chipsDataCache.distribution;
