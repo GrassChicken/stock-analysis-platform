@@ -10,23 +10,18 @@ from typing import Dict, Any, Optional
 from datetime import datetime, timedelta
 import pandas as pd
 import numpy as np
-import tushare as ts
 import os
 from dotenv import load_dotenv
+from app.services.data.tushare_client import get_tushare_client
 
 logger = logging.getLogger(__name__)
-
-# 初始化 Tushare
-load_dotenv('/root/.openclaw/workspace-fafaxia/projects/stock-analysis-platform/.env')
-ts.set_token(os.getenv('TUSHARE_TOKEN'))
-pro = ts.pro_api()
 
 
 class ValuationAnalyzer:
     """估值分析器"""
     
     def __init__(self):
-        self.pro = pro
+        self.pro = get_tushare_client().pro
         self.discount_rate = 0.10  # 折现率 10%
         self.terminal_growth_rate = 0.03  # 永续增长率 3%
     

@@ -8,23 +8,18 @@ import time
 from typing import Dict, Any
 from datetime import datetime, timedelta
 import pandas as pd
-import tushare as ts
 import os
 from dotenv import load_dotenv
+from app.services.data.tushare_client import get_tushare_client
 
 logger = logging.getLogger(__name__)
-
-# 初始化 Tushare
-load_dotenv('/root/.openclaw/workspace-fafaxia/projects/stock-analysis-platform/.env')
-ts.set_token(os.getenv('TUSHARE_TOKEN'))
-pro = ts.pro_api()
 
 
 class FundamentalAnalyzer:
     """基本面分析器"""
     
     def __init__(self):
-        self.pro = pro
+        self.pro = get_tushare_client().pro
     
     def _format_code(self, code: str) -> str:
         """格式化股票代码"""
