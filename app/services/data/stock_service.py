@@ -507,6 +507,79 @@ class StockService:
             logger.error(f"获取业绩预告数据失败 {ts_code or '全市场'}: {e}")
             return {'available': False, 'data': [], 'count': 0}
 
+    def get_broker_recommend(self, month: str = None) -> Dict[str, Any]:
+        """
+        获取券商月度金股
+
+        Args:
+            month: 月份 YYYYMM（如 202601），默认当前月
+
+        Returns:
+            dict: {
+                'available': bool,
+                'month': 'YYYYMM',
+                'data': [金股列表],
+                'count': 总数,
+                'consensus': [{ts_code, name, count, brokers}],  # 共识度排行
+            }
+        """
+        client = get_tushare_client()
+
+        try:
+            # 默认当前月
+            if not month:
+                month = datetime.now().strftime('%Y%m')
+
+            cache_key = f'broker_recommend:{month}'
+            cached = cache_get(cache_key)
+            if cached:
+                return cached
+
+            df = client.get_broker_recommend(month=month)
+
+            if df is None or df.empty:
+                return {'available': False, 'month': month, 'data': [], 'count': 0, 'consensus': []}
+
+            # 转换为字典列表
+            records = []
+            for _, row in df.iterrows():
+                records.append({
+                    'ts_code': row.get('ts_code'),
+                    'name': row.get('name'),
+                    'broker': row.get('broker'),
+                    'month': row.get('month'),
+                })
+
+            # 计算共识度：按股票聚合推荐次数
+            from collections import Counter
+            stock_count = Counter(r['ts_code'] for r in records)
+            consensus = []
+            for ts_code, count in stock_count.most_common(50):
+                brokers = [r['broker'] for r in records if r['ts_code'] == ts_code]
+                name = next((r['name'] for r in records if r['ts_code'] == ts_code), '')
+                consensus.append({
+                    'ts_code': ts_code,
+                    'name': name,
+                    'count': count,
+                    'brokers': brokers,
+                })
+
+            result = {
+                'available': True,
+                'month': month,
+                'data': records,
+                'count': len(records),
+                'consensus': consensus,
+            }
+
+            cache_set(cache_key, result, timeout=86400)  # 缓存 24 小时
+            logger.info(f"✓ 获取券商金股成功 {month}: {len(records)} 条推荐")
+            return result
+
+        except Exception as e:
+            logger.error(f"获取券商金股失败 {month}: {e}")
+            return {'available': False, 'month': month or '', 'data': [], 'count': 0, 'consensus': []}
+
     def _aggregate_weekly(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         将日K数据聚合为周K

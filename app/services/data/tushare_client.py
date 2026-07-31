@@ -493,6 +493,27 @@ class TushareClient:
             logger.error(f"获取业绩预告失败 {ts_code or '全市场'}: {e}")
             return pd.DataFrame()
 
+    def get_broker_recommend(self, month: str) -> pd.DataFrame:
+        """
+        获取券商月度金股（broker_recommend：券商推荐的股票）
+
+        Args:
+            month: 月份 YYYYMM（如 202601）
+
+        Returns:
+            券商金股 DataFrame
+            字段：month, broker, ts_code, name
+        """
+        if not self.pro:
+            return pd.DataFrame()
+
+        try:
+            df = self.pro.broker_recommend(month=month)
+            return df if df is not None else pd.DataFrame()
+        except Exception as e:
+            logger.error(f"获取券商金股失败 {month}: {e}")
+            return pd.DataFrame()
+
 
 # 全局实例（需要延迟初始化）
 _tushare_client = None

@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block title %}券商金股池 - {{ super() }}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <!-- 页面标题 -->
+    <div class="mb-6">
+        <h1 class="text-2xl font-bold text-gray-800">🏆 券商金股池</h1>
+        <p class="text-sm text-gray-600 mt-1">汇聚各大券商月度推荐，追踪市场共识</p>
+    </div>
+
+    <!-- 月份选择器 -->
+    <div class="bg-white rounded-lg shadow-sm p-4 mb-6">
+        <div class="flex items-center space-x-3">
+            <label class="text-sm font-medium text-gray-700">选择月份：</label>
+            <input type="month" id="month-input" class="border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <button onclick="changeMonth()" class="bg-blue-600 text-white px-4 py-1.5 rounded-md text-sm hover:bg-blue-700 transition">
+                查询
+            </button>
+        </div>
+    </div>
+
+    <!-- 内容区域 -->
+    <div id="broker-content">
+        <!-- 加载中 -->
+        <div class="flex items-center justify-center py-12">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            <span class="ml-3 text-gray-600">加载中...</span>
+        </div>
+    </div>
+</div>
+
+<script src="/static/js/broker.js"></script>
+{% endblock %}

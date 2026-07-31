@@ -112,6 +112,24 @@ def get_market_forecast():
     return jsonify(data)
 
 
+@api_bp.route("/market/broker_recommend")
+@api_error_handler
+def get_broker_recommend():
+    """券商月度金股（10000积分专属接口）"""
+    month = request.args.get('month', '')  # YYYYMM，默认当前月
+    data = stock_service.get_broker_recommend(month if month else None)
+    return jsonify(data)
+
+
+@api_bp.route("/market/broker_recommend")
+@api_error_handler
+def get_market_broker_recommend():
+    """券商月度金股（10000积分专属接口）"""
+    month = request.args.get('month', '')  # YYYYMM 格式
+    data = stock_service.get_broker_recommend(month=month)
+    return jsonify(data)
+
+
 @api_bp.route("/stock/<code>/patterns")
 @api_error_handler
 def get_patterns(code: str):

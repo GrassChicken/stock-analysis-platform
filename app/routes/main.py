@@ -14,3 +14,9 @@ def index():
 def watchlist():
     """自选股管理页"""
     return render_template("pages/watchlist.html", title="我的自选股")
+
+
+@main_bp.route("/broker")
+def broker():
+    """券商金股池页"""
+    return render_template("pages/broker.html", title="券商金股池")
