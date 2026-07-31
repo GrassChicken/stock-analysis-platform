@@ -47,3 +47,4 @@ service.log
 reports/*.pdf
 # 生成的 PDF 报告
 reports/
+.env.bak.*
