@@ -230,9 +230,15 @@ async function startCompare() {
         }
 
         updateStockNames(data.stocks || []);
-        renderCompareResults(data);
         
+        // 关键修复：先显示结果容器，再渲染图表（确保 ECharts 能获取到正确的容器尺寸）
         document.getElementById('compare-results').classList.remove('hidden');
+        
+        // 使用 requestAnimationFrame 确保 DOM 已更新后再渲染图表
+        requestAnimationFrame(() => {
+            renderCompareResults(data);
+        });
+        
         setTimeout(() => {
             document.getElementById('compare-results').scrollIntoView({ behavior: 'smooth' });
         }, 100);
