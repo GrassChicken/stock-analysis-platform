@@ -368,31 +368,23 @@ def get_watchlist():
                 return '<div class="text-center py-8"><p class="text-sm text-gray-400">暂无自选股</p><p class="text-xs text-gray-300 mt-1">搜索股票后点击 ⭐ 添加</p></div>'
             return jsonify({"watchlist": []})
         
-        # 获取实时行情
+        # 获取实时行情（批量一次调用）
+        code_list = [stock_service._format_code(item.code) for item in items]
+        quotes = stock_service.get_batch_quotes(code_list)
+        
         watchlist_data = []
         for item in items:
-            try:
-                quote = stock_service.get_quote(item.code)
-                watchlist_data.append({
-                    'code': item.code,
-                    'name': item.name or quote.get('name', ''),
-                    'price': quote.get('price', 0),
-                    'change': quote.get('change', 0),
-                    'change_pct': quote.get('change_pct', 0),
-                    'group': item.group_name,
-                    'created_at': item.created_at.strftime('%Y-%m-%d %H:%M') if item.created_at else ''
-                })
-            except Exception as e:
-                logger.warning(f"获取自选股 {item.code} 行情失败: {e}")
-                watchlist_data.append({
-                    'code': item.code,
-                    'name': item.name or item.code,
-                    'price': 0,
-                    'change': 0,
-                    'change_pct': 0,
-                    'group': item.group_name,
-                    'created_at': item.created_at.strftime('%Y-%m-%d %H:%M') if item.created_at else ''
-                })
+            ts_code = stock_service._format_code(item.code)
+            quote = quotes.get(ts_code) or {}
+            watchlist_data.append({
+                'code': item.code,
+                'name': item.name or quote.get('name', ''),
+                'price': quote.get('price', 0),
+                'change': quote.get('change', 0),
+                'change_pct': quote.get('change_pct', 0),
+                'group': item.group_name,
+                'created_at': item.created_at.strftime('%Y-%m-%d %H:%M') if item.created_at else ''
+            })
         
         # HTMX 请求返回 HTML
         if request.headers.get('HX-Request'):

@@ -260,6 +260,82 @@ class StockService:
                 return stock
         return {}
 
+    def get_batch_quotes(self, codes: List[str]) -> Dict[str, Dict[str, Any]]:
+        """
+        批量获取多只股票行情（一次 API 调用）
+        
+        Args:
+            codes: 股票代码列表（如 ['000001.SZ', '600000.SH']）
+        
+        Returns:
+            行情字典 {ts_code: {price, change, change_pct, ...}}
+        """
+        pro = self._get_pro()
+        if not pro or not codes:
+            return {}
+
+        try:
+            # 1. 获取最新交易日
+            end_date = datetime.now().strftime('%Y%m%d')
+            start_date = (datetime.now() - timedelta(days=30)).strftime('%Y%m%d')
+            
+            trade_cal = pro.trade_cal(exchange='SSE', start_date=start_date, end_date=end_date)
+            time.sleep(0.3)
+            
+            if trade_cal.empty:
+                return {}
+            
+            # 取最近的交易日
+            latest_trade_date = trade_cal[trade_cal['is_open'] == 1]['cal_date'].max()
+            if not latest_trade_date:
+                return {}
+            
+            # 2. 一次调用获取全市场当日行情
+            df = pro.daily(trade_date=latest_trade_date)
+            time.sleep(0.3)
+            
+            if df.empty:
+                return {}
+            
+            # 3. 过滤出目标股票
+            df_filtered = df[df['ts_code'].isin(codes)]
+            
+            # 4. 构建结果字典
+            stocks_map = {stock['ts_code']: stock['name'] for stock in self.get_all_stocks()}
+            
+            result = {}
+            for _, row in df_filtered.iterrows():
+                ts_code = row['ts_code']
+                prev_close = row.get('pre_close', 0)
+                change = row.get('change', 0)
+                change_pct = row.get('pct_chg', 0)
+                
+                result[ts_code] = {
+                    'ts_code': ts_code,
+                    'code': ts_code.split('.')[0],
+                    'name': stocks_map.get(ts_code, ''),
+                    'price': float(row.get('close', 0)),
+                    'open': float(row.get('open', 0)),
+                    'high': float(row.get('high', 0)),
+                    'low': float(row.get('low', 0)),
+                    'volume': float(row.get('vol', 0)),
+                    'amount': float(row.get('amount', 0)),
+                    'change': float(change),
+                    'change_pct': float(change_pct),
+                    'trade_date': row.get('trade_date', ''),
+                }
+            
+            # 5. 缓存每只股票的行情（保持原有缓存逻辑）
+            for ts_code, quote_data in result.items():
+                cache_set(f"quote:{ts_code}", quote_data, timeout=CACHE_TTL['quote'])
+            
+            logger.info(f"✓ 批量获取 {len(result)} 只股票行情（从 {len(df)} 条中筛选）")
+            return result
+            
+        except Exception as e:
+            logger.error(f"批量获取行情失败: {e}")
+            return {}
+
     def get_kline(self, code: str, period: str = 'daily', count: int = 250) -> List[Dict[str, Any]]:
         """
         获取 K 线数据
