@@ -139,7 +139,8 @@ function formatForecastChangeRange(min, max) {
     if (min == null && max == null) return '--';
     
     const formatPercent = (value) => {
-        const percent = (value * 100).toFixed(2);
+        // Tushare p_change_min/max 本身就是百分比值（如 -65.98 表示 -65.98%），不需要再乘100
+        const percent = Number(value).toFixed(2);
         const sign = value >= 0 ? '+' : '';
         return `${sign}${percent}%`;
     };
@@ -166,7 +167,8 @@ function formatForecastProfitRange(min, max) {
     if (min == null && max == null) return '--';
     
     const formatYi = (value) => {
-        const yi = value / 100000000;
+        // Tushare net_profit_min/max 单位是万元，先转为元再转亿
+        const yi = (value * 10000) / 100000000;
         return `${yi.toFixed(2)}亿`;
     };
     
