@@ -381,48 +381,75 @@ function renderMetricsTable(stocks, best) {
 
 function renderRadarChart(stocks) {
     const dom = document.getElementById('radar-chart');
-    radarChart = echarts.getInstanceByDom(dom) || echarts.init(dom);
+    
+    // 等待容器渲染完成后再初始化
+    const initChart = () => {
+        // 确保容器有实际尺寸
+        const rect = dom.getBoundingClientRect();
+        if (rect.width === 0 || rect.height === 0) {
+            console.warn('Radar chart container has no dimensions, retrying...');
+            setTimeout(initChart, 100);
+            return;
+        }
+        
+        radarChart = echarts.getInstanceByDom(dom) || echarts.init(dom);
 
-    const colors = ['#3b82f6', '#22c55e', '#a855f7', '#f97316'];
-    const dims = [
-        { key: 'fundamental_score', name: '基本面' },
-        { key: 'technical_score', name: '技术面' },
-        { key: 'valuation_score', name: '估值面' },
-        { key: 'capital_score', name: '资金面' },
-        { key: 'industry_score', name: '行业面' },
-        { key: 'growth_score', name: '成长性' }
-    ];
+        const colors = ['#3b82f6', '#22c55e', '#a855f7', '#f97316'];
+        const dims = [
+            { key: 'fundamental_score', name: '基本面' },
+            { key: 'technical_score', name: '技术面' },
+            { key: 'valuation_score', name: '估值面' },
+            { key: 'capital_score', name: '资金面' },
+            { key: 'industry_score', name: '行业面' },
+            { key: 'growth_score', name: '成长性' }
+        ];
 
-    const seriesData = stocks.map((s, i) => ({
-        value: dims.map(d => (s.breakdown && s.breakdown[d.key]) || 0),
-        name: s.name || s.code,
-        lineStyle: { color: colors[i], width: 2 },
-        areaStyle: { color: colors[i], opacity: 0.15 },
-        itemStyle: { color: colors[i] },
-        symbol: 'circle',
-        symbolSize: 6
-    }));
+        const seriesData = stocks.map((s, i) => ({
+            value: dims.map(d => (s.breakdown && s.breakdown[d.key]) || 0),
+            name: s.name || s.code,
+            lineStyle: { color: colors[i], width: 2 },
+            areaStyle: { color: colors[i], opacity: 0.15 },
+            itemStyle: { color: colors[i] },
+            symbol: 'circle',
+            symbolSize: 6
+        }));
 
-    radarChart.setOption({
-        tooltip: { trigger: 'item' },
-        legend: {
-            data: stocks.map(s => s.name || s.code),
-            bottom: 0,
-            textStyle: { fontSize: 12 }
-        },
-        radar: {
-            center: ['50%', '45%'],
-            radius: '65%',
-            indicator: dims.map(d => ({ name: d.name, max: 100 })),
-            axisName: { color: '#666', fontSize: 13, fontWeight: 500 },
-            splitArea: {
-                areaStyle: { color: ['rgba(59, 130, 246, 0.03)', 'rgba(59, 130, 246, 0.06)'] }
+        radarChart.setOption({
+            tooltip: { trigger: 'item' },
+            legend: {
+                data: stocks.map(s => s.name || s.code),
+                bottom: 10,
+                textStyle: { fontSize: 13 },
+                itemWidth: 12,
+                itemHeight: 12,
+                itemGap: 20
             },
-            axisLine: { lineStyle: { color: 'rgba(0,0,0,0.08)' } },
-            splitLine: { lineStyle: { color: 'rgba(0,0,0,0.08)' } }
-        },
-        series: [{ type: 'radar', data: seriesData }]
-    });
+            radar: {
+                center: ['50%', '48%'],
+                radius: '70%',
+                indicator: dims.map(d => ({ name: d.name, max: 100 })),
+                axisName: { 
+                    color: '#4b5563', 
+                    fontSize: 14, 
+                    fontWeight: 600,
+                    lineHeight: 18
+                },
+                splitArea: {
+                    areaStyle: { 
+                        color: ['rgba(59, 130, 246, 0.05)', 'rgba(59, 130, 246, 0.1)'] 
+                    }
+                },
+                axisLine: { lineStyle: { color: 'rgba(0,0,0,0.15)', width: 1 } },
+                splitLine: { lineStyle: { color: 'rgba(0,0,0,0.15)', width: 1 } }
+            },
+            series: [{ type: 'radar', data: seriesData }]
+        });
 
-    window.addEventListener('resize', () => { if (radarChart) radarChart.resize(); });
+        // 延迟 resize 确保图表填满容器
+        setTimeout(() => { if (radarChart) radarChart.resize(); }, 200);
+
+        window.addEventListener('resize', () => { if (radarChart) radarChart.resize(); });
+    };
+    
+    initChart();
 }
