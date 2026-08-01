@@ -110,7 +110,15 @@ function renderBrokerPage() {
         <!-- 完整金股列表 -->
         <div class="bg-white rounded-lg shadow p-6">
             <h2 class="text-xl font-semibold mb-4">📋 完整金股列表</h2>
-            <div class="text-sm text-gray-500 mb-4">共 ${data.length} 条推荐，来自 ${new Set(data.map(d => d.broker)).size} 家券商</div>
+            <div class="text-sm text-gray-500 mb-3">共 ${data.length} 条推荐，来自 ${new Set(data.map(d => d.broker)).size} 家券商</div>
+            
+            <!-- 搜索框 -->
+            <div class="mb-4 flex items-center">
+                <input id="stock-search" type="text" placeholder="搜索股票名称、代码或券商..."
+                    class="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+                <span class="ml-3 text-sm text-gray-500" id="stock-filter-info"></span>
+            </div>
+            
             <div class="overflow-x-auto">
                 <table class="w-full text-sm">
                     <thead class="bg-gray-50">
@@ -131,12 +139,6 @@ function renderBrokerPage() {
     html += `
                     </tbody>
                 </table>
-            </div>
-            <!-- 搜索框 -->
-            <div class="mt-4 flex items-center">
-                <input id="stock-search" type="text" placeholder="搜索股票名称或代码..."
-                    class="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
-                <span class="ml-3 text-sm text-gray-500" id="stock-filter-info"></span>
             </div>
             <!-- 分页 -->
             <div class="mt-4 flex items-center justify-between text-sm text-gray-600">
