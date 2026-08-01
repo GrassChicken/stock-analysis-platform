@@ -559,18 +559,32 @@ class StockService:
             # 转换为字典列表
             forecast_list = []
             for _, row in df.iterrows():
+                # 安全获取值：处理 NaN/None
+                def safe_str(val):
+                    if val is None or pd.isna(val):
+                        return None
+                    return str(val)
+                
+                def safe_float(val):
+                    if val is None or pd.isna(val):
+                        return None
+                    try:
+                        return float(val)
+                    except (TypeError, ValueError):
+                        return None
+                
                 forecast_list.append({
-                    'ts_code': row.get('ts_code'),
-                    'ann_date': row.get('ann_date'),  # 公告日期
-                    'end_date': row.get('end_date'),  # 报告期
-                    'type': row.get('type'),  # 预告类型
-                    'p_change_min': row.get('p_change_min'),  # 净利润变动下限
-                    'p_change_max': row.get('p_change_max'),  # 净利润变动上限
-                    'net_profit_min': row.get('net_profit_min'),  # 净利润下限
-                    'net_profit_max': row.get('net_profit_max'),  # 净利润上限
-                    'last_parent_net': row.get('last_parent_net'),  # 上年同期净利润
-                    'summary': row.get('summary'),  # 业绩预告摘要
-                    'change_reason': row.get('change_reason'),  # 业绩变动原因
+                    'ts_code': safe_str(row.get('ts_code')),
+                    'ann_date': safe_str(row.get('ann_date')),
+                    'end_date': safe_str(row.get('end_date')),
+                    'type': safe_str(row.get('type')),
+                    'p_change_min': safe_float(row.get('p_change_min')),
+                    'p_change_max': safe_float(row.get('p_change_max')),
+                    'net_profit_min': safe_float(row.get('net_profit_min')),
+                    'net_profit_max': safe_float(row.get('net_profit_max')),
+                    'last_parent_net': safe_float(row.get('last_parent_net')),
+                    'summary': safe_str(row.get('summary')),
+                    'change_reason': safe_str(row.get('change_reason')),
                 })
             
             logger.info(f"✓ 获取业绩预告数据成功：{len(forecast_list)} 条")
