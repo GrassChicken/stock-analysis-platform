@@ -158,6 +158,76 @@ class FinanceService:
             logger.error(f"获取财务指标失败 {ts_code}: {e}")
             return {}
 
+    def get_fina_indicators_history(self, code: str, quarters: int = 8) -> List[Dict[str, Any]]:
+        """
+        获取近 N 季度财务指标趋势
+        
+        Args:
+            code: 股票代码
+            quarters: 季度数，默认 8
+        
+        Returns:
+            财务指标历史数据列表
+        """
+        ts_code = self._format_code(code)
+        
+        # 检查缓存
+        cache_key = f"fina_indicators_history:{ts_code}:{quarters}"
+        cached_result = cache_get(cache_key)
+        if cached_result is not None:
+            return cached_result
+
+        pro = self._get_pro()
+        if not pro:
+            return []
+
+        try:
+            df = pro.fina_indicator(
+                ts_code=ts_code,
+                fields='ts_code,end_date,eps,dt_eps,bps,roe,roe_waa,roe_dt,grossprofit_margin,netprofit_margin,op_yoy,dt_netprofit_yoy,tr_yoy,or_yoy,current_ratio,quick_ratio,debt_to_assets,assets_turn,fix_ass_ratio'
+            )
+            time.sleep(0.3)
+            
+            if df.empty:
+                return []
+            
+            # 去重：按 end_date 去重（保留第一条）
+            if 'end_date' in df.columns:
+                df = df.drop_duplicates(subset=['end_date'], keep='first')
+            # 只取最近的 N 条
+            df = df.head(quarters)
+            
+            result = []
+            for _, row in df.iterrows():
+                result.append({
+                    'end_date': str(row.get('end_date', '')),
+                    'eps': self._safe_float(row.get('eps')),
+                    'dt_eps': self._safe_float(row.get('dt_eps')),
+                    'bps': self._safe_float(row.get('bps')),
+                    'roe': self._safe_float(row.get('roe')),
+                    'roe_waa': self._safe_float(row.get('roe_waa')),
+                    'roe_dt': self._safe_float(row.get('roe_dt')),
+                    'grossprofit_margin': self._safe_float(row.get('grossprofit_margin')),
+                    'netprofit_margin': self._safe_float(row.get('netprofit_margin')),
+                    'op_yoy': self._safe_float(row.get('op_yoy')),
+                    'dt_netprofit_yoy': self._safe_float(row.get('dt_netprofit_yoy')),
+                    'tr_yoy': self._safe_float(row.get('tr_yoy')),
+                    'or_yoy': self._safe_float(row.get('or_yoy')),
+                    'current_ratio': self._safe_float(row.get('current_ratio')),
+                    'quick_ratio': self._safe_float(row.get('quick_ratio')),
+                    'debt_to_assets': self._safe_float(row.get('debt_to_assets')),
+                    'assets_turn': self._safe_float(row.get('assets_turn')),
+                    'fix_ass_ratio': self._safe_float(row.get('fix_ass_ratio')),
+                })
+            
+            # 写入缓存
+            cache_set(cache_key, result, timeout=CACHE_TTL['finance'])
+            
+            return result
+        except Exception as e:
+            logger.error(f"获取财务指标历史失败 {ts_code}: {e}")
+            return []
+
     def get_income_history(self, code: str, quarters: int = 8) -> List[Dict[str, Any]]:
         """
         获取近 N 季度利润表趋势
@@ -191,6 +261,9 @@ class FinanceService:
             if df.empty:
                 return []
             
+            # 去重：按 end_date 去重（保留第一条）
+            if 'end_date' in df.columns:
+                df = df.drop_duplicates(subset=['end_date'], keep='first')
             # 只取最近的 N 条
             df = df.head(quarters)
             
@@ -250,6 +323,9 @@ class FinanceService:
             if df.empty:
                 return []
             
+            # 去重：按 end_date 去重（保留第一条）
+            if 'end_date' in df.columns:
+                df = df.drop_duplicates(subset=['end_date'], keep='first')
             # 只取最近的 N 条
             df = df.head(quarters)
             
@@ -305,6 +381,9 @@ class FinanceService:
             if df.empty:
                 return []
             
+            # 去重：按 end_date 去重（保留第一条）
+            if 'end_date' in df.columns:
+                df = df.drop_duplicates(subset=['end_date'], keep='first')
             # 只取最近的 N 条
             df = df.head(quarters)
             

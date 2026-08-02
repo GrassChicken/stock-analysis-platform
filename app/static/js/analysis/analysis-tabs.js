@@ -51,6 +51,15 @@ async function loadTabContent(tab) {
             const res = await fetch(`/api/stock/${STOCK_CODE}/forecast`);
             const data = await res.json();
             html = renderForecast(data);
+        } else if (tab === 'finance') {
+            const res = await fetch(`/api/stock/${STOCK_CODE}/finance`);
+            const financeData = await res.json();
+            html = renderFinance(financeData);
+            body.innerHTML = `<div class="tab-transition">${html}</div>`;
+            // innerHTML 插入后手动初始化图表
+            if (typeof initFinanceCharts === 'function') {
+                initFinanceCharts(financeData);
+            }
         } else if (tab === 'ai') {
             html = renderAIAnalysis();
         }

@@ -9,6 +9,7 @@ from app.services.analysis.scorer import StockScorer
 from app.services.analysis.technical import TechnicalAnalyzer
 from app.services.analysis.capital import capital_analyzer
 from app.services.analysis.industry import industry_analyzer
+from app.services.data.finance_service import finance_service
 from app.utils.decorators import api_error_handler, validate_stock_code
 from app.utils.response import success_response, error_response
 from app.utils.exceptions import NotFoundError, ValidationError
@@ -346,6 +347,39 @@ def get_ai_analysis(code: str):
     flask_cache.set(cache_key, result, timeout=3600)
     logger.debug(f"AI分析结果已缓存: {code}")
     
+    return jsonify(result)
+
+
+# ==================== 财务状况 ====================
+
+@api_bp.route("/stock/<code>/finance")
+@api_error_handler
+def get_finance(code: str):
+    """财务状况分析（近8季度趋势，缓存1小时）"""
+    cache_key = f"finance:{code}"
+    cached_result = flask_cache.get(cache_key)
+    if cached_result is not None:
+        logger.debug(f"财务状况缓存命中: {code}")
+        return jsonify(cached_result)
+    
+    # 获取近8季度财务指标历史
+    indicators = finance_service.get_fina_indicators_history(code, quarters=8)
+    # 获取近8季度利润表历史
+    income = finance_service.get_income_history(code, quarters=8)
+    # 获取近8季度资产负债表历史
+    balance = finance_service.get_balance_history(code, quarters=8)
+    # 获取近8季度现金流历史
+    cashflow = finance_service.get_cashflow_history(code, quarters=8)
+    
+    result = {
+        'indicators': indicators,
+        'income': income,
+        'balance': balance,
+        'cashflow': cashflow
+    }
+    
+    flask_cache.set(cache_key, result, timeout=3600)
+    logger.debug(f"财务状况结果已缓存: {code}")
     return jsonify(result)
 
 
